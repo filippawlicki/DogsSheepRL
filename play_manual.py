@@ -2,6 +2,7 @@ import sys
 import os
 import gym
 from envs.wolf_sheep_env import WolfSheepEnv
+import config
 
 key_to_action = {
     "w": 0,  # Move up
@@ -28,7 +29,7 @@ def get_key():
             termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
         return ch
 
-env = WolfSheepEnv(grid_size=10, num_wolves=2, num_sheep=5)
+env = WolfSheepEnv(grid_size=config.GRID_SIZE, num_wolves=config.NUM_WOLVES, num_sheep=config.NUM_SHEEP)
 obs, _ = env.reset()
 
 done = False
