@@ -1,7 +1,7 @@
 import gym
 import numpy as np
 import random
-from .. import config
+import config
 
 class WolfSheepEnv(gym.Env):
     def __init__(self, grid_size=10, num_wolves=2, num_sheep=5):
