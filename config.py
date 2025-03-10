@@ -1,4 +1,5 @@
 GRID_SIZE = 10
+PYGAME_SCALE = 80
 NUM_WOLVES = 3
 NUM_SHEEP = 5
 TARGET_RADIUS = 2
@@ -12,3 +13,8 @@ WOLF_MOVEMENT_REWARD = 1
 
 # Miscellaneous settings
 RANDOM_SEED = None
+
+# Path to images
+WOLF_IMAGE = "images/wolf.png"
+SHEEP_IMAGE = "images/sheep.png"
+TARGET_IMAGE = "images/fence.png"
