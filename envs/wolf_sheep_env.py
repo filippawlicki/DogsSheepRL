@@ -2,6 +2,7 @@ import gym
 import numpy as np
 import random
 import config
+from .render import GameRenderer
 
 class WolfSheepEnv(gym.Env):
     def __init__(self, grid_size=10, num_wolves=2, num_sheep=5):
@@ -18,6 +19,8 @@ class WolfSheepEnv(gym.Env):
 
         obs_size = (self.num_wolves + self.num_sheep) * 2 + 2  # (x, y) for each wolf, sheep, and target
         self.observation_space = gym.spaces.Box(low=0, high=self.grid_size, shape=(obs_size,), dtype=np.int32)
+
+        self.renderer = GameRenderer(grid_size)
 
     def _random_pos(self):
         return [random.randint(0, self.grid_size - 1), random.randint(0, self.grid_size - 1)]
@@ -46,7 +49,7 @@ class WolfSheepEnv(gym.Env):
         done = self._check_done()
         reward = self._compute_reward()
 
-        return self._get_observation(), reward, done, {}
+        return self._get_observation(), reward, done, {}, {}
 
     def _move_wolves(self, actions):
         directions = {
@@ -103,13 +106,7 @@ class WolfSheepEnv(gym.Env):
         return sheep_near_target * config.SHEEP_NEAR_TARGET_REWARD - sheep_captured * config.SHEEP_CAPTURED_PENALTY
 
     def render(self):
-        """Prints the current state of the simulation."""
-        grid = np.full((self.grid_size, self.grid_size), ".", dtype=str)
-        for w in self.wolves:
-            grid[w[0], w[1]] = "W"
-        for s in self.sheep:
-            grid[s[0], s[1]] = "S"
-        grid[self.target[0], self.target[1]] = "T"
+        self.renderer.render_game(self.wolves, self.sheep, self.target)
 
-        print("\n".join(" ".join(row) for row in grid))
-        print()
+    def close(self):
+        self.renderer.close()
