@@ -1,36 +1,69 @@
 import sys
-
 import pygame
+import config
 
 class GameRenderer:
     def __init__(self, grid_size):
-        """Initialize the game screen."""
+        """Initialize the game screen and load images."""
         pygame.init()
         self.grid_size = grid_size
-        self.screen = pygame.display.set_mode((grid_size * 40, grid_size * 40))
+        self.screen = pygame.display.set_mode((grid_size * config.PYGAME_SCALE, grid_size * config.PYGAME_SCALE))
         pygame.display.set_caption("Wolf Sheep Simulation")
         self.clock = pygame.time.Clock()  # Create clock object to control frame rate
 
-    def draw_wolves(self, wolves):
-        """Draw wolves on the board."""
-        for w in wolves:
-            pygame.draw.circle(self.screen, (255, 0, 0), (w[1] * 40 + 20, w[0] * 40 + 20), 10)  # Red for wolves
+        # Load images
+        self.wolf_image = pygame.image.load(config.WOLF_IMAGE)
+        self.sheep_image = pygame.image.load(config.SHEEP_IMAGE)
+        self.target_image = pygame.image.load(config.TARGET_IMAGE)
 
-    def draw_sheep(self, sheep):
-        """Draw sheep on the board."""
-        for s in sheep:
-            pygame.draw.circle(self.screen, (0, 255, 0), (s[1] * 40 + 20, s[0] * 40 + 20), 10)  # Green for sheep
+        # Scale images to fit the grid cells
+        self.wolf_image = pygame.transform.scale(self.wolf_image, (config.PYGAME_SCALE, config.PYGAME_SCALE))
+        self.sheep_image = pygame.transform.scale(self.sheep_image, (config.PYGAME_SCALE, config.PYGAME_SCALE))
+        self.target_image = pygame.transform.scale(self.target_image, (config.PYGAME_SCALE, config.PYGAME_SCALE))
+
+    def draw_animal(self, animals, image):
+        """Draw any animal using an image."""
+        for a in animals:
+            x, y = a[1] * config.PYGAME_SCALE, a[0] * config.PYGAME_SCALE  # Position based on grid coordinates
+            self.screen.blit(image, (x, y))
+
+            # Check if more than one animal is in the same cell
+            count = sum(
+                1 for animal in animals if animal == a)  # Count how many times the same animal appears in the list
+            if count > 1:
+                # Draw a number to indicate the number of animals in the cell
+                font = pygame.font.Font(None, 36)
+
+                # Render the text in white
+                text = font.render(str(count), True, (255, 255, 255))
+
+                # Create the outline by rendering the text in black and shifting it
+                outline = font.render(str(count), True, (0, 0, 0))
+
+                # Draw the outline first (slightly offset in different directions)
+                self.screen.blit(outline, (x - 1, y - 1))  # Top-left
+                self.screen.blit(outline, (x + 1, y - 1))  # Top-right
+                self.screen.blit(outline, (x - 1, y + 1))  # Bottom-left
+                self.screen.blit(outline, (x + 1, y + 1))  # Bottom-right
+                self.screen.blit(text, (x, y))
 
     def draw_target(self, target):
-        """Draw the target on the board."""
-        pygame.draw.rect(self.screen, (0, 0, 255), (target[1] * 40, target[0] * 40, 40, 40))  # Blue for the target
+        """Draw the target using an image."""
+        x, y = target[1] * config.PYGAME_SCALE, target[0] * config.PYGAME_SCALE  # Position based on grid coordinates
+        self.screen.blit(self.target_image, (x, y))
 
     def render_game(self, wolves, sheep, target):
         """Render the entire game state on the screen."""
-        self.screen.fill((255, 255, 255))  # Fill the background with white
+        self.screen.fill((0, 100, 0))  # Fill the background with green
+        # Grid lines
+        for i in range(self.grid_size):
+            pygame.draw.line(self.screen, (0, 0, 0), (0, i * config.PYGAME_SCALE), (self.grid_size * config.PYGAME_SCALE, i * config.PYGAME_SCALE))
+            pygame.draw.line(self.screen, (0, 0, 0), (i * config.PYGAME_SCALE, 0), (i * config.PYGAME_SCALE, self.grid_size * config.PYGAME_SCALE))
 
-        self.draw_wolves(wolves)
-        self.draw_sheep(sheep)
+
+        # Draw all game elements (wolves, sheep, and target)
+        self.draw_animal(wolves, self.wolf_image)
+        self.draw_animal(sheep, self.sheep_image)
         self.draw_target(target)
 
         pygame.display.flip()  # Update the screen with the drawn elements
