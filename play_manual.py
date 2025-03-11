@@ -7,7 +7,7 @@ from pyswip import Prolog
 
 def check_connection(start, end):
   prolog = Prolog()
-  prolog.consult("logic.pl")
+  prolog.consult("prolog/logic.pl")
   query = f"path({start}, {end}, X)"
   result = list(prolog.query(query))
   return len(result) > 0
