@@ -2,6 +2,23 @@ import sys
 import pygame
 from envs.wolf_sheep_env import WolfSheepEnv
 import config
+from pyswip import Prolog
+
+
+def check_connection(start, end):
+  prolog = Prolog()
+  prolog.consult("prolog/logic.pl")
+  query = f"path({start}, {end}, X)"
+  result = list(prolog.query(query))
+  return len(result) > 0
+
+
+start_point = 'a'
+end_point = 'e'
+if check_connection(start_point, end_point):
+  print(f"There is a connection between {start_point} and {end_point}.")
+else:
+  print(f"There is no connection between {start_point} and {end_point}.")
 
 key_to_action = {
   pygame.K_w: 0,  # Move up

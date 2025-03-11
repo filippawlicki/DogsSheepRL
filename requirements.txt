@@ -1,0 +1,4 @@
+pygame~=2.6.1
+gym~=0.26.2
+numpy~=2.2.3
+pyswip==0.3.0
