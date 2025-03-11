@@ -20,7 +20,6 @@ if check_connection(start_point, end_point):
 else:
   print(f"There is no connection between {start_point} and {end_point}.")
 
-
 key_to_action = {
   pygame.K_w: 0,  # Move up
   pygame.K_s: 1,  # Move down
