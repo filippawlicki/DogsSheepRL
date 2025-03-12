@@ -4,6 +4,7 @@ NUM_WOLVES = 3
 NUM_SHEEP = 5
 TARGET_RADIUS = 2
 MIN_DISTANCE_SHEEP = 2
+SHEEP_VISION_RANGE = GRID_SIZE*4/5 # New setting for sheep's vision range
 
 # Reward settings
 SHEEP_NEAR_TARGET_REWARD = 5

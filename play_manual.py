@@ -4,22 +4,6 @@ from envs.wolf_sheep_env import WolfSheepEnv
 import config
 from pyswip import Prolog
 
-
-def check_connection(start, end):
-  prolog = Prolog()
-  prolog.consult("prolog/logic.pl")
-  query = f"path({start}, {end}, X)"
-  result = list(prolog.query(query))
-  return len(result) > 0
-
-
-start_point = 'a'
-end_point = 'e'
-if check_connection(start_point, end_point):
-  print(f"There is a connection between {start_point} and {end_point}.")
-else:
-  print(f"There is no connection between {start_point} and {end_point}.")
-
 key_to_action = {
   pygame.K_w: 0,  # Move up
   pygame.K_s: 1,  # Move down
@@ -45,18 +29,17 @@ def handle_input():
     action = 2  # Left
   elif keys[pygame.K_d]:
     action = 3  # Right
-
   return action
 
 
 env = WolfSheepEnv(grid_size=config.GRID_SIZE, num_wolves=config.NUM_WOLVES, num_sheep=config.NUM_SHEEP)
 obs, _ = env.reset()
 
+print("Use WASD to move. Press Q to quit.")
 done = False
 while not done:
   env.render()  # Call the render method to display the game state
 
-  print("Use WASD to move. Press Q to quit.")
 
   # Poll for events using pygame
   for event in pygame.event.get():
