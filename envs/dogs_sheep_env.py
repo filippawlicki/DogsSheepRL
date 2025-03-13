@@ -9,7 +9,7 @@ import math
 prolog = Prolog()
 prolog.consult("prolog/logic.pl")
 
-class WolfSheepEnv(gym.Env):
+class DogsSheepEnv(gym.Env):
     def __init__(self, grid_size=10, num_wolves=2, num_sheep=5):
         self.grid_size = grid_size
         self.num_wolves = num_wolves

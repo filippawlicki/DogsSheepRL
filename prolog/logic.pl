@@ -8,32 +8,32 @@ on_target(X, Y) :-
 % Target position will be asserted from Python
 :- dynamic target_position/2.
 
-direction_to_move(SheepX, SheepY, WolfX, WolfY, Crowded, VisionRange, MoveX, MoveY) :-
-    % Case when the wolf is in the same field as the sheep
-    (SheepX =:= WolfX, SheepY =:= WolfY ->
+direction_to_move(SheepX, SheepY, DogX, DogY, Crowded, VisionRange, MoveX, MoveY) :-
+    % Case when the dog is in the same field as the sheep
+    (SheepX =:= DogX, SheepY =:= DogY ->
         random_member(MoveX, [-1, 1]),
         random_member(MoveY, [-1, 1])
     ;
         % Case when the sheep is on the target
         on_target(SheepX, SheepY) ->
         (random(0.0, 1.0, Rand), Rand > 0.99 ->
-            calculate_move(SheepX, SheepY, WolfX, WolfY, Crowded, MoveX, MoveY)
+            calculate_move(SheepX, SheepY, DogX, DogY, Crowded, MoveX, MoveY)
         ;   MoveX = 0,
             MoveY = 0
         )
     ;
-        % Check if the wolf is within the sheep's vision range
-        distance((SheepX, SheepY), (WolfX, WolfY), D),
+        % Check if the dog is within the sheep's vision range
+        distance((SheepX, SheepY), (DogX, DogY), D),
         (D =< VisionRange ->
-            calculate_move(SheepX, SheepY, WolfX, WolfY, Crowded, MoveX, MoveY)
+            calculate_move(SheepX, SheepY, DogX, DogY, Crowded, MoveX, MoveY)
         ;   random_member(MoveX, [-1, 1]),
             random_member(MoveY, [-1, 1])
         )
     ).
 
-calculate_move(SheepX, SheepY, WolfX, WolfY, Crowded, MoveX, MoveY) :-
-    DX is SheepX - WolfX,
-    DY is SheepY - WolfY,
+calculate_move(SheepX, SheepY, DogX, DogY, Crowded, MoveX, MoveY) :-
+    DX is SheepX - DogX,
+    DY is SheepY - DogY,
     (DX > 0 ->
         TempX = 1
     ;   (DX < 0 ->

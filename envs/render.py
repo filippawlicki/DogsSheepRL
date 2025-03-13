@@ -8,16 +8,16 @@ class GameRenderer:
         pygame.init()
         self.grid_size = grid_size
         self.screen = pygame.display.set_mode((grid_size * config.PYGAME_SCALE, grid_size * config.PYGAME_SCALE))
-        pygame.display.set_caption("Wolf Sheep Simulation")
+        pygame.display.set_caption("Dogs Sheep Simulation")
         self.clock = pygame.time.Clock()  # Create clock object to control frame rate
 
         # Load images
-        self.wolf_image = pygame.image.load(config.WOLF_IMAGE)
+        self.dog_image = pygame.image.load(config.DOG_IMAGE)
         self.sheep_image = pygame.image.load(config.SHEEP_IMAGE)
         self.target_image = pygame.image.load(config.TARGET_IMAGE)
 
         # Scale images to fit the grid cells
-        self.wolf_image = pygame.transform.scale(self.wolf_image, (config.PYGAME_SCALE, config.PYGAME_SCALE))
+        self.dog_image = pygame.transform.scale(self.dog_image, (config.PYGAME_SCALE, config.PYGAME_SCALE))
         self.sheep_image = pygame.transform.scale(self.sheep_image, (config.PYGAME_SCALE, config.PYGAME_SCALE))
         self.target_image = pygame.transform.scale(self.target_image, (config.PYGAME_SCALE, config.PYGAME_SCALE))
 
@@ -62,7 +62,7 @@ class GameRenderer:
 
 
         # Draw all game elements (wolves, sheep, and target)
-        self.draw_animal(wolves, self.wolf_image)
+        self.draw_animal(wolves, self.dog_image)
         self.draw_animal(sheep, self.sheep_image)
         self.draw_target(target)
 

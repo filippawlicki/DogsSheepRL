@@ -1,6 +1,6 @@
 import sys
 import pygame
-from envs.wolf_sheep_env import WolfSheepEnv
+from envs.dogs_sheep_env import DogsSheepEnv
 import config
 from pyswip import Prolog
 
@@ -32,7 +32,7 @@ def handle_input():
   return action
 
 
-env = WolfSheepEnv(grid_size=config.GRID_SIZE, num_wolves=config.NUM_WOLVES, num_sheep=config.NUM_SHEEP)
+env = DogsSheepEnv(grid_size=config.GRID_SIZE, num_wolves=config.NUM_WOLVES, num_sheep=config.NUM_SHEEP)
 obs, _ = env.reset()
 
 print("Use WASD to move. Press Q to quit.")
