@@ -32,7 +32,7 @@ def handle_input():
   return action
 
 
-env = DogsSheepEnv(grid_size=config.GRID_SIZE, num_wolves=config.NUM_WOLVES, num_sheep=config.NUM_SHEEP)
+env = DogsSheepEnv(grid_size=config.GRID_SIZE, num_dogs=config.NUM_DOGS, num_sheep=config.NUM_SHEEP)
 obs, _ = env.reset()
 
 print("Use WASD to move. Press Q to quit.")
@@ -51,7 +51,7 @@ while not done:
   action = handle_input()
 
   if action is not None:  # If a valid action is detected
-    actions = [action] * env.num_wolves  # Apply the same action for all wolves
+    actions = [action] * env.num_dogs  # Apply the same action for all dogs
     obs, reward, done, _, _ = env.step(actions)
 
 env.close()

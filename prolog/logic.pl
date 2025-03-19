@@ -8,59 +8,115 @@ on_target(X, Y) :-
 % Target position will be asserted from Python
 :- dynamic target_position/2.
 
-direction_to_move(SheepX, SheepY, DogX, DogY, Crowded, VisionRange, MoveX, MoveY) :-
-    % Case when the dog is in the same field as the sheep
-    (SheepX =:= DogX, SheepY =:= DogY ->
-        random_member(MoveX, [-1, 1]),
-        random_member(MoveY, [-1, 1])
-    ;
-        % Case when the sheep is on the target
-        on_target(SheepX, SheepY) ->
-        (random(0.0, 1.0, Rand), Rand > 0.99 ->
-            calculate_move(SheepX, SheepY, DogX, DogY, Crowded, MoveX, MoveY)
-        ;   MoveX = 0,
-            MoveY = 0
+vector_to_sheep(SheepX, SheepY, (DogX, DogY), (VX, VY), D) :-
+    VX is SheepX - DogX,
+    VY is SheepY - DogY,
+    distance((SheepX, SheepY), (DogX, DogY), D).
+    
+vector_divide_by_distance_squared((VX, VY), D, (DVX, DVY)) :-
+    D2 is D * D,
+    DVX is VX / D2,
+    DVY is VY / D2.
+    
+vector_add((VX1, VY1), (VX2, VY2), (VX, VY)) :-
+    VX is VX1 + VX2,
+    VY is VY1 + VY2.
+    
+vector_sum(SheepX, SheepY, Dogs, (SumVX, SumVY)) :-
+    findall((DVX, DVY), 
+        (member(Dog, Dogs), 
+        vector_to_sheep(SheepX, SheepY, Dog, (VX, VY), D),
+        vector_divide_by_distance_squared((VX, VY), D, (DVX, DVY))), 
+        Vectors),
+    foldl(vector_add, Vectors, (0, 0), (SumVX, SumVY)).
+
+
+
+normal_behavior(SumVX, SumVY, MoveX, MoveY) :-
+    (abs(SumVX) =< abs(SumVY) ->
+        (SumVY > 0 ->
+            MoveX is 0,
+            MoveY is 1  % Move right
+        ;   MoveX is 0,
+            MoveY is -1  % Move left
         )
-    ;
-        % Check if the dog is within the sheep's vision range
-        distance((SheepX, SheepY), (DogX, DogY), D),
-        (D =< VisionRange ->
-            calculate_move(SheepX, SheepY, DogX, DogY, Crowded, MoveX, MoveY)
-        ;   random_member(MoveX, [-1, 1]),
-            random_member(MoveY, [-1, 1])
+    ;   (SumVX > 0 ->
+            MoveY is 0,
+            MoveX is 1  % Move down
+        ;   MoveY is 0,
+            MoveX is -1  % Move up
         )
     ).
 
-calculate_move(SheepX, SheepY, DogX, DogY, Crowded, MoveX, MoveY) :-
-    DX is SheepX - DogX,
-    DY is SheepY - DogY,
-    (DX > 0 ->
-        TempX = 1
-    ;   (DX < 0 ->
-            TempX = -1
-        ;   TempX = 0
+esc_crowded(SheepX, SheepY, TargetX, TargetY, MoveX, MoveY) :-
+    (SheepX < TargetX ->
+        MoveX is 1
+    ;   (SheepX > TargetX ->
+            MoveX is -1
+        ;   MoveX is 0
         )
     ),
-    (DY > 0 ->
-        TempY = 1
-    ;   (DY < 0 ->
-            TempY = -1
-        ;   TempY = 0
+    (SheepY < TargetY ->
+        MoveY is 1
+    ;   (SheepY > TargetY ->
+            MoveY is -1
+        ;   MoveY is 0
+        )
+    ).
+
+avoid_sheep_overlap(SheepX, SheepY, MoveX, MoveY, OtherSheep) :-
+    NewX is SheepX + MoveX,
+    NewY is SheepY + MoveY,
+    target_position(TargetX, TargetY),
+    (NewX =\= TargetX; NewY =\= TargetY) ->
+        \+ member((NewX, NewY), OtherSheep)
+    ;   true.
+
+move_towards_target(SheepX, SheepY, TargetX, TargetY, MoveX, MoveY) :-
+    (SheepX < TargetX ->
+        MoveX is 1
+    ;   (SheepX > TargetX ->
+            MoveX is -1
+        ;   MoveX is 0
         )
     ),
-    (Crowded > 1 ->
-        (   random_member(RX, [-1, 0, 1]),
-            random_member(RY, [-1, 0, 1]),
-            MoveX is TempX + RX,
-            MoveY is TempY + RY,
-            abs(MoveX) =< 1,
-            abs(MoveY) =< 1,
-            \+ on_target(SheepX + MoveX, SheepY + MoveY)
+    (SheepY < TargetY ->
+        MoveY is 1
+    ;   (SheepY > TargetY ->
+            MoveY is -1
+        ;   MoveY is 0
         )
-    ;   (   MoveX = TempX,
-            MoveY = TempY,
-            abs(MoveX) =< 1,
-            abs(MoveY) =< 1,
-            \+ on_target(SheepX + MoveX, SheepY + MoveY)
+    ).
+
+direction_to_move(SheepX, SheepY, Dogs, CrowdedSheep, VisionRange, OtherSheep, MoveX, MoveY) :-
+    target_position(TargetX, TargetY),
+    (on_target(SheepX, SheepY) ->
+        % Sheep is in the target area, do not move
+        MoveX is 0,
+        MoveY is 0,
+        !
+    ;
+        (member((SheepX, SheepY), Dogs) ->
+            % Sheep is in the same position as a dog, move towards the target
+            move_towards_target(SheepX, SheepY, TargetX, TargetY, MoveX, MoveY),
+            !
+        ;
+            % Check for overlapping sheep
+            (CrowdedSheep > 1 ->
+                % Move to adjacent position to avoid overlap
+                esc_crowded(SheepX, SheepY, TargetX, TargetY, MoveX, MoveY),
+                !
+            ;
+                % Normal behavior
+                vector_sum(SheepX, SheepY, Dogs, (SumVX, SumVY)),
+                normal_behavior(SumVX, SumVY, MoveX, MoveY)
+            )
+        ),
+        % Ensure the sheep does not move to a position occupied by another sheep
+        (avoid_sheep_overlap(SheepX, SheepY, MoveX, MoveY, OtherSheep) ->
+            true
+        ;
+            MoveX is 0,
+            MoveY is 0
         )
     ).
