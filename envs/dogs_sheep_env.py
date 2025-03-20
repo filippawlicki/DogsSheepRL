@@ -2,12 +2,15 @@ import gym
 import numpy as np
 import random
 import config
-from .render import GameRenderer
+from envs.render import GameRenderer
 from pyswip import Prolog
 import math
+from pathlib import Path
+
+prolog_file = str(config.ROOT_DIR / "prolog" / "logic.pl")
 
 prolog = Prolog()
-prolog.consult("prolog/logic.pl")
+prolog.consult(prolog_file)
 
 
 class DogsSheepEnv(gym.Env):
