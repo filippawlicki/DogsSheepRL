@@ -10,7 +10,7 @@ from pyswip import Prolog
 import math
 from pathlib import Path
 
-prolog_file = str(config.ROOT_DIR / "prolog" / "logic.pl")
+prolog_file = str(config.ROOT_DIR / "prolog" / "logic.pl").replace("\\", "/")
 
 prolog = Prolog()
 prolog.consult(prolog_file)

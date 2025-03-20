@@ -1,5 +1,5 @@
-pygame~=2.6.1
+pygame
 gym
-numpy==2.2.0
+numpy
 pyswip==0.3.0
-torch~=1.10.0
+torch

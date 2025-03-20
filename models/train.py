@@ -7,6 +7,7 @@ import gym
 from gym import envs
 from gym.envs.registration import register
 import matplotlib.pyplot as plt
+import time
 
 
 env_id = 'DogsSheep-v0'
@@ -47,6 +48,7 @@ for episode in range(episodes):
     total_reward = 0
     episode_reward = 0
     episode_loss = 0
+    time_start = time.time()
     for step in range(max_steps):
         action = agent.select_action(state)
         #print("Action:", action)  # Debugging line
@@ -74,7 +76,7 @@ for episode in range(episodes):
     if agent.epsilon > agent.epsilon_min:
         agent.epsilon *= agent.epsilon_decay
 
-    print(f"Episode {episode + 1}/{episodes}, Reward: {total_reward}, Loss: {episode_loss}")
+    print(f"Episode {episode + 1}/{episodes}, Reward: {total_reward}, Loss: {episode_loss}, Time: {time.time() - time_start:.2f}")
 
 # Save trained model
 torch.save(agent.model.state_dict(), "dqn_model.pth")

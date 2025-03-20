@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -46,11 +47,11 @@ class DQNAgent:
         states, actions, rewards, next_states, dones = zip(*batch)
 
         # Convert batch to tensors
-        states = torch.tensor(states, dtype=torch.float32).to(self.device)
-        actions = torch.tensor(actions, dtype=torch.int64).to(self.device)
-        rewards = torch.tensor(rewards, dtype=torch.float32).unsqueeze(1).to(self.device)
-        next_states = torch.tensor(next_states, dtype=torch.float32).to(self.device)
-        dones = torch.tensor(dones, dtype=torch.float32).unsqueeze(1).to(self.device)
+        states = torch.tensor(np.array(states), dtype=torch.float32).to(self.device)
+        actions = torch.tensor(np.array(actions), dtype=torch.int64).to(self.device)
+        rewards = torch.tensor(np.array(rewards), dtype=torch.float32).unsqueeze(1).to(self.device)
+        next_states = torch.tensor(np.array(next_states), dtype=torch.float32).to(self.device)
+        dones = torch.tensor(np.array(dones), dtype=torch.float32).unsqueeze(1).to(self.device)
 
         # Get Q-values for the current state and action
         model_output = self.model(states)
