@@ -94,7 +94,7 @@ class DogsSheepEnv(gym.Env):
             print(f"\nProlog query: {query}")  # Debugging line
             result = list(prolog.query(query))
             print("target: ", list(prolog.query(f"target_position(X, Y)"))[0])
-            print("result: ", result[0])
+            print("result: ", result)
             if not result:
                 print(f"No result for query: {query}")  # Debugging line
                 move_x, move_y = 0, 0  # Default move if no result
