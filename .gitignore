@@ -157,6 +157,7 @@ cython_debug/
 *.swp
 *.swo
 .DS_Store
+models/output/
 
 # Ruff stuff:
 .ruff_cache/

@@ -9,7 +9,7 @@ state_dim = env.observation_space.shape[0]
 action_dim = env.action_space.n
 
 agent = DQNAgent(state_dim, action_dim)
-agent.model.load_state_dict(torch.load("dqn_model.pth"))
+agent.model.load_state_dict(torch.load("output/dqn_model.pth"))
 agent.model.eval()
 
 for episode in range(10):

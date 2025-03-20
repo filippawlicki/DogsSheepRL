@@ -8,14 +8,16 @@ import config
 from models.dqn_model import DQN
 
 class DQNAgent:
-    def __init__(self, state_dim, action_dim, lr=0.001, gamma=0.95, device="cpu"):
+    def __init__(self, state_dim, action_dim, lr=0.001, gamma=0.95, device="cpu", epsilon_greedy=False, epsilon=1.0, epsilon_min=0.01, epsilon_decay=0.995):
         self.device = device
         self.state_dim = state_dim
         self.action_dim = action_dim
         self.gamma = gamma
-        self.epsilon = config.EPSILON
-        self.epsilon_min = config.EPSILON_MIN
-        self.epsilon_decay = config.EPSILON_DECAY
+        self.epsilon_greedy = epsilon_greedy
+        if self.epsilon_greedy:
+            self.epsilon = epsilon
+            self.epsilon_min = epsilon_min
+            self.epsilon_decay = epsilon_decay
 
         self.model = DQN(state_dim, action_dim).to(self.device)
         self.target_model = DQN(state_dim, action_dim).to(self.device)
@@ -28,12 +30,14 @@ class DQNAgent:
 
     def select_action(self, state):
         """Given a state, return an action for each dog."""
-        with torch.no_grad():
-            state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(self.device)
-            q_values = self.model(state_tensor)
-
-        action = q_values.argmax(dim=-1).squeeze().cpu().numpy()  # Select max action for each dog
-        return action
+        if self.epsilon_greedy and random.random() < self.epsilon:  # Eksploracja
+            return np.random.randint(0, 4, size=(self.action_dim,))  # Losowa akcja
+        else:  # Eksploatacja
+            with torch.no_grad():
+                state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(self.device)
+                q_values = self.model(state_tensor)
+            action = q_values.argmax(dim=-1).squeeze().cpu().numpy()
+            return action
 
     def store_transition(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
@@ -73,6 +77,8 @@ class DQNAgent:
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
+
+        self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
 
         return loss.item()
 

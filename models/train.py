@@ -22,13 +22,17 @@ if env_id not in envs.registry:
     )
 
 # Training hyperparameters
-episodes = 30000
+episodes = 20000
 max_steps = 1000
 checkpoint_freq = 1000
 print_freq = 50
 batch_size = 64
 lr = 0.0001
 gamma = 0.95
+epsilon_greedy = True
+epsilon = 1.0  # Initial epsilon for epsilon-greedy policy //MOVE TO TRAIN.PY
+epsilon_min = 0.01
+epsilon_decay = 0.995
 
 # Environment initialization
 env = gym.make('DogsSheep-v0', grid_size=config.GRID_SIZE, num_dogs=config.NUM_DOGS, num_sheep=config.NUM_SHEEP)
@@ -39,10 +43,10 @@ observation, _ = env.reset()
 # Pass observation shape
 state_dim = observation.shape[0]
 
-device = torch.device("cuda" if torch.cuda.is_available() else "xpu" if torch.xpu.is_available() else "cpu")
+device = torch.device("cpu")
 print("Device:", device)
 
-agent = DQNAgent(state_dim, config.NUM_DOGS, lr=lr, gamma=gamma, device=device)
+agent = DQNAgent(state_dim, config.NUM_DOGS, lr=lr, gamma=gamma, device=device, epsilon_greedy=epsilon_greedy, epsilon=epsilon, epsilon_min=epsilon_min, epsilon_decay=epsilon_decay)
 
 rewards = []
 losses = []

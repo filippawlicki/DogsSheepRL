@@ -31,10 +31,6 @@ HERD_ALL_SHEEP_REWARD = 20.0
 # Miscellaneous settings
 RANDOM_SEED = None
 
-EPSILON = 1.0  # Initial epsilon for epsilon-greedy policy
-EPSILON_MIN = 0.01
-EPSILON_DECAY = 0.995
-
 # Path to images
 DOG_IMAGE = ROOT_DIR / "images/dog.png"
 SHEEP_IMAGE = ROOT_DIR / "images/sheep.png"
