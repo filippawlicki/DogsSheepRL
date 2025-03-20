@@ -27,6 +27,9 @@ class DogsSheepEnv(gym.Env):
         self.sheep = [self._random_pos() for _ in range(self.num_sheep)]
         self.target = self._random_pos()  # Target position
 
+        self.prev_dogs = [dog[:] for dog in self.dogs]  # Previous dog positions
+        self.prev_sheep = [sheep[:] for sheep in self.sheep]  # Previous sheep positions
+
         self.action_space = gym.spaces.MultiDiscrete([4] * self.num_dogs)  # Every dog can move in 4 directions
 
         obs_size = (self.num_dogs + self.num_sheep) * 2 + 2  # (x, y) for each dog, sheep, and target
@@ -45,18 +48,18 @@ class DogsSheepEnv(gym.Env):
         return [random.randint(0, self.grid_size - 1), random.randint(0, self.grid_size - 1)]
 
     def reset(self, seed=None, options=None):
-        super().reset(seed=seed)  # Ensures Gym's reset behavior
+        super().reset(seed=seed)
 
         self.dogs = [self._random_pos() for _ in range(self.num_dogs)]
         self.sheep = [self._random_pos() for _ in range(self.num_sheep)]
         self.target = self._random_pos()
 
+        self.prev_dogs = [dog[:] for dog in self.dogs]
+        self.prev_sheep = [sheep[:] for sheep in self.sheep]
+
         self._send_target_to_prolog()
-
         observation = self._get_observation()
-        info = {}  # Gym requires this
-
-        return observation, info
+        return observation, {}
 
     def step(self, dog_actions):
         """
@@ -98,12 +101,12 @@ class DogsSheepEnv(gym.Env):
 
             # Calculate direction to the nearest dog using Prolog
             query = f"direction_to_move({self.sheep[i][0]}, {self.sheep[i][1]}, {dogs_prolog}, {crowded_sheep}, {config.SHEEP_VISION_RANGE}, {sheep_prolog}, MoveX, MoveY)"
-            print(f"\nProlog query: {query}")  # Debugging line
+            #print(f"\nProlog query: {query}")  # Debugging line
             result = list(prolog.query(query))
-            print("target: ", list(prolog.query(f"target_position(X, Y)"))[0])
-            print("result: ", result)
+            #print("target: ", list(prolog.query(f"target_position(X, Y)"))[0])
+            #print("result: ", result)
             if not result:
-                print(f"No result for query: {query}")  # Debugging line
+                #print(f"No result for query: {query}")  # Debugging line
                 move_x, move_y = 0, 0  # Default move if no result
             else:
                 try:
@@ -112,7 +115,7 @@ class DogsSheepEnv(gym.Env):
                 except (ValueError, KeyError) as e:
                     print(f"Error converting Prolog result to int: {e}")  # Debugging line
                     move_x, move_y = 0, 0  # Default move if conversion fails
-            print(f"move_x: {move_x}, move_y: {move_y}")  # Debugging line
+            #print(f"move_x: {move_x}, move_y: {move_y}")  # Debugging line
 
 
             # Moving the sheep
@@ -133,10 +136,48 @@ class DogsSheepEnv(gym.Env):
         return all_sheep_captured or all_sheep_in_target
 
     def _compute_reward(self):
-        """Counts points for herding sheep."""
-        sheep_near_target = sum(1 for s in self.sheep if self._distance(s, self.target) < config.TARGET_RADIUS)
-        sheep_captured = sum(1 for s in self.sheep if s in self.dogs)
-        return sheep_near_target * config.SHEEP_NEAR_TARGET_REWARD - sheep_captured * config.SHEEP_CAPTURED_PENALTY
+        """Compute the reward for the current state."""
+        total_reward = 0
+
+        # Reward for each dog moving toward a sheep
+        # for dog in self.dogs:
+        #     closest_sheep = min(self.sheep, key=lambda s: self._distance(dog, s))
+        #     old_distance = self._distance(dog, closest_sheep)
+        #
+        #     # Find new distance after movement
+        #     new_dog_pos = dog  # Assuming dog already moved
+        #     new_distance = self._distance(new_dog_pos, closest_sheep)
+        #
+        #     if new_distance < old_distance:
+        #         total_reward += config.DOG_MOVE_TOWARD_SHEEP_REWARD  # Reward if dog gets closer
+        #     else:
+        #         total_reward -= config.DOG_MOVE_AWAY_PENALTY  # Penalize moving away
+
+        # Reward for sheep moving toward target
+        for sheep in self.sheep:
+            # Get old distance to target from previous position
+            old_distance = self._distance(self.prev_sheep[self.sheep.index(sheep)], self.target)
+            new_distance = self._distance(sheep, self.target)
+            if new_distance < old_distance:
+                total_reward += config.SHEEP_MOVE_TOWARD_TARGET_REWARD  # Reward if sheep gets closer
+
+            if new_distance < 1 and new_distance < old_distance:
+                total_reward += config.SHEEP_CAPTURED_REWARD
+
+        # Penalty for hitting walls (if the dog doesn’t move)
+        for i, dog in enumerate(self.dogs):
+            if dog == self.prev_dogs[i]:  # If the position didn’t change
+                total_reward -= config.DOG_HIT_WALL_PENALTY
+
+        # Reward for herding all sheep to the target
+        if all(sheep == self.target for sheep in self.sheep):
+            total_reward += config.HERD_ALL_SHEEP_REWARD
+
+        # Update previous positions for next step
+        self.prev_dogs = [dog[:] for dog in self.dogs]
+        self.prev_sheep = [sheep[:] for sheep in self.sheep]
+
+        return total_reward
 
     def render(self):
         self.renderer.render_game(self.dogs, self.sheep, self.target)
