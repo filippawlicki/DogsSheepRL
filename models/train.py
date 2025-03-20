@@ -32,7 +32,7 @@ observation, _ = env.reset()
 # Pass observation shape
 state_dim = observation.shape[0]
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda" if torch.cuda.is_available() else "xpu" if torch.xpu.is_available() else "cpu")
 print("Device:", device)
 
 agent = DQNAgent(state_dim, config.NUM_DOGS, device=device)
