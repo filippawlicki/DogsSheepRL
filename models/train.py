@@ -22,7 +22,7 @@ if env_id not in envs.registry:
     )
 
 # Training hyperparameters
-episodes = 20000
+episodes = 30000
 max_steps = 1000
 checkpoint_freq = 1000
 print_freq = 50
@@ -99,6 +99,7 @@ plt.plot(rewards)
 plt.xlabel("Episode")
 plt.ylabel("Reward")
 plt.title("Training Rewards")
+plt.savefig(f"{config.OUTPUT_DIR}/training_rewards.png")
 plt.show()
 
 # Plot losses
@@ -106,4 +107,5 @@ plt.plot(losses)
 plt.xlabel("Episode")
 plt.ylabel("Loss")
 plt.title("Training Loss")
+plt.savefig(f"{config.OUTPUT_DIR}/training_losses.png")
 plt.show()
