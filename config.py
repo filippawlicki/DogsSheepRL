@@ -30,8 +30,8 @@ HIDDEN_SIZE = 128
 
 # Training Parameters
 BATCH_SIZE = 32  # Number of experiences sampled from replay buffer
-GAMMA = 0.99  # Discount factor for future rewards
-LEARNING_RATE = 0.001  # Learning rate for optimizer
+GAMMA = 0.5  # Discount factor for future rewards
+LEARNING_RATE = 0.01  # Learning rate for optimizer
 MEMORY_SIZE = 10000  # Maximum size of replay buffer
 TARGET_UPDATE = 10  # Number of episodes before updating target network
 EPSILON = 1.0  # Initial epsilon for epsilon-greedy policy

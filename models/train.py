@@ -20,18 +20,25 @@ if env_id not in envs.registry:
     )
 
 # Training hyperparameters
-episodes = 100
+episodes = 10000
 max_steps = 1000
 
 # Environment initialization
 env = gym.make('DogsSheep-v0', grid_size=config.GRID_SIZE, num_dogs=config.NUM_DOGS, num_sheep=config.NUM_SHEEP)
-state_dim = env.observation_space.shape[0]
 
-print("State dimensions:", state_dim)
+# Get an initial observation (list of all positions)
+observation, _ = env.reset()
 
-agent = DQNAgent(state_dim, config.NUM_DOGS)
+# Pass observation shape
+state_dim = observation.shape[0]
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print("Device:", device)
+
+agent = DQNAgent(state_dim, config.NUM_DOGS, device=device)
 
 rewards = []
+losses = []
 
 # Training loop
 for episode in range(episodes):
@@ -39,8 +46,8 @@ for episode in range(episodes):
     state = np.array(state, dtype=np.float32)
     total_reward = 0
     episode_reward = 0
+    episode_loss = 0
     for step in range(max_steps):
-        # Select action for all dogs
         action = agent.select_action(state)
         #print("Action:", action)  # Debugging line
 
@@ -52,19 +59,22 @@ for episode in range(episodes):
         total_reward += reward
         episode_reward += reward
 
-        agent.train(config.BATCH_SIZE)
+        loss = agent.train(config.BATCH_SIZE)
+        if loss is not None:
+            episode_loss += loss
 
         if done or truncated:
             break
 
     agent.update_target_model()
     rewards.append(episode_reward)
+    losses.append(episode_loss)
 
     # Gradually reduce epsilon (exploration)
     if agent.epsilon > agent.epsilon_min:
         agent.epsilon *= agent.epsilon_decay
 
-    print(f"Episode {episode + 1}/{episodes}, Reward: {total_reward}")
+    print(f"Episode {episode + 1}/{episodes}, Reward: {total_reward}, Loss: {episode_loss}")
 
 # Save trained model
 torch.save(agent.model.state_dict(), "dqn_model.pth")
@@ -75,4 +85,11 @@ plt.plot(rewards)
 plt.xlabel("Episode")
 plt.ylabel("Reward")
 plt.title("Training Rewards")
+plt.show()
+
+# Plot losses
+plt.plot(losses)
+plt.xlabel("Episode")
+plt.ylabel("Loss")
+plt.title("Training Loss")
 plt.show()
