@@ -1,6 +1,9 @@
 import gym
 import numpy as np
 import random
+
+from math import trunc
+
 import config
 from envs.render import GameRenderer
 from pyswip import Prolog
@@ -59,16 +62,17 @@ class DogsSheepEnv(gym.Env):
         """
         Makes a step in the environment.
         - Dog actions is a list of actions for each dog.
-        - Returns observation, reward, done flag, and additional info.
-        - Sheep move randomly, avoiding dogs and each other.
+        - Returns observation, reward, done flag, truncated flag.
+        - Sheep avoide dogs.
         """
         self._move_dogs(dog_actions)
         self._move_sheep()
 
         done = self._check_done()
+        truncated = False  # Not used in this environment
         reward = self._compute_reward()
 
-        return self._get_observation(), reward, done, {}, {}
+        return self._get_observation(), reward, bool(done), bool(truncated), {}
 
     def _move_dogs(self, actions):
         directions = {

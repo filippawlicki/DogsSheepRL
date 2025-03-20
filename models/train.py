@@ -24,26 +24,32 @@ max_steps = 1000
 # Environment initialization
 env = gym.make('DogsSheep-v0', grid_size=config.GRID_SIZE, num_dogs=config.NUM_DOGS, num_sheep=config.NUM_SHEEP)
 state_dim = env.observation_space.shape[0]
-action_dim = []
-for i in range(config.NUM_DOGS):
-    action_dim.append(env.action_space[i].n)
+action_dim = [env.action_space[i].n for i in range(config.NUM_DOGS)]  # Action space for each dog
 
-action_dim = np.prod(action_dim)
+# Action dimension is a list of discrete actions, not a scalar
+action_dim_total = np.prod(action_dim)  # Total number of possible combinations of actions
 
 print("State dimensions:", state_dim)
 print("Action dimensions:", action_dim)
-print("Action type:", type(action_dim))
+print("Total action dimension:", action_dim_total)
 
-agent = DQNAgent(state_dim, action_dim)
+agent = DQNAgent(state_dim, action_dim_total)
 
-# Pętla treningowa
+# Training loop
 for episode in range(episodes):
     state, _ = env.reset()
     state = np.array(state, dtype=np.float32)
     total_reward = 0
 
     for step in range(max_steps):
-        action = agent.select_action(state)
+        # Select action for all dogs
+        action_scalar = agent.select_action(state)
+        print("Action scalar:", action_scalar)  # Debugging line
+        # Map scalar action to individual dog actions
+        action = np.array([action_scalar % 4 for _ in range(config.NUM_DOGS)])  # Each dog gets an action from 0 to 3
+
+        print("Action:", action)  # Debugging line
+
         next_state, reward, done, truncated, _ = env.step(action)
         next_state = np.array(next_state, dtype=np.float32)
 
@@ -58,12 +64,12 @@ for episode in range(episodes):
 
     agent.update_target_model()
 
-    # Stopniowe zmniejszanie epsilonu (eksploracji)
+    # Gradually reduce epsilon (exploration)
     if agent.epsilon > agent.epsilon_min:
         agent.epsilon *= agent.epsilon_decay
 
     print(f"Episode {episode + 1}/{episodes}, Reward: {total_reward}")
 
-# Zapis wytrenowanego modelu
+# Save trained model
 torch.save(agent.model.state_dict(), "dqn_model.pth")
 env.close()
