@@ -1,3 +1,4 @@
+from pathlib import Path
 import torch
 import numpy as np
 from dqn_agent import DQNAgent
@@ -7,8 +8,8 @@ import gym
 from gym import envs
 from gym.envs.registration import register
 import matplotlib.pyplot as plt
-import time
 
+Path(config.OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
 
 env_id = 'DogsSheep-v0'
 
@@ -21,8 +22,13 @@ if env_id not in envs.registry:
     )
 
 # Training hyperparameters
-episodes = 10000
+episodes = 20000
 max_steps = 1000
+checkpoint_freq = 1000
+print_freq = 50
+batch_size = 64
+lr = 0.0001
+gamma = 0.95
 
 # Environment initialization
 env = gym.make('DogsSheep-v0', grid_size=config.GRID_SIZE, num_dogs=config.NUM_DOGS, num_sheep=config.NUM_SHEEP)
@@ -36,7 +42,7 @@ state_dim = observation.shape[0]
 device = torch.device("cuda" if torch.cuda.is_available() else "xpu" if torch.xpu.is_available() else "cpu")
 print("Device:", device)
 
-agent = DQNAgent(state_dim, config.NUM_DOGS, device=device)
+agent = DQNAgent(state_dim, config.NUM_DOGS, lr=lr, gamma=gamma, device=device)
 
 rewards = []
 losses = []
@@ -48,7 +54,6 @@ for episode in range(episodes):
     total_reward = 0
     episode_reward = 0
     episode_loss = 0
-    time_start = time.time()
     for step in range(max_steps):
         action = agent.select_action(state)
         #print("Action:", action)  # Debugging line
@@ -61,7 +66,7 @@ for episode in range(episodes):
         total_reward += reward
         episode_reward += reward
 
-        loss = agent.train(config.BATCH_SIZE)
+        loss = agent.train(batch_size)
         if loss is not None:
             episode_loss += loss
 
@@ -72,14 +77,21 @@ for episode in range(episodes):
     rewards.append(episode_reward)
     losses.append(episode_loss)
 
+    if (episode + 1) % print_freq == 0:
+        print(f"Episode {episode + 1}/{episodes}, Reward: {total_reward}, Loss: {episode_loss}")
+
+    # Checkpoint model
+    if (episode + 1) % checkpoint_freq == 0:
+        formatted_loss = f"{episode_loss:.2f}"
+        torch.save(agent.model.state_dict(), f"{config.OUTPUT_DIR}/dqn_model_{episode + 1}_loss_{formatted_loss}_reward_{total_reward}.pth")
+
     # Gradually reduce epsilon (exploration)
     if agent.epsilon > agent.epsilon_min:
         agent.epsilon *= agent.epsilon_decay
 
-    print(f"Episode {episode + 1}/{episodes}, Reward: {total_reward}, Loss: {episode_loss}, Time: {time.time() - time_start:.2f}")
 
 # Save trained model
-torch.save(agent.model.state_dict(), "dqn_model.pth")
+torch.save(agent.model.state_dict(), f"{config.OUTPUT_DIR}/dqn_model.pth")
 env.close()
 
 # Plot rewards

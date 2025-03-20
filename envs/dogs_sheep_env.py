@@ -139,37 +139,46 @@ class DogsSheepEnv(gym.Env):
         """Compute the reward for the current state."""
         total_reward = 0
 
-        # Reward for each dog moving toward a sheep
-        # for dog in self.dogs:
-        #     closest_sheep = min(self.sheep, key=lambda s: self._distance(dog, s))
-        #     old_distance = self._distance(dog, closest_sheep)
-        #
-        #     # Find new distance after movement
-        #     new_dog_pos = dog  # Assuming dog already moved
-        #     new_distance = self._distance(new_dog_pos, closest_sheep)
-        #
-        #     if new_distance < old_distance:
-        #         total_reward += config.DOG_MOVE_TOWARD_SHEEP_REWARD  # Reward if dog gets closer
-        #     else:
-        #         total_reward -= config.DOG_MOVE_AWAY_PENALTY  # Penalize moving away
+        # Reward for each dog moving toward the closest sheep
+        for i, dog in enumerate(self.dogs):
+            closest_sheep = min(self.sheep, key=lambda s: self._distance(dog, s))
+            old_distance = self._distance(self.prev_dogs[i], closest_sheep)
+            new_distance = self._distance(dog, closest_sheep)
+
+            if new_distance < old_distance:
+                total_reward += config.DOG_MOVE_TOWARD_SHEEP_REWARD
+            else:
+                total_reward -= config.DOG_MOVE_AWAY_PENALTY
 
         # Reward for sheep moving toward target
-        for sheep in self.sheep:
-            # Get old distance to target from previous position
-            old_distance = self._distance(self.prev_sheep[self.sheep.index(sheep)], self.target)
+        for i, sheep in enumerate(self.sheep):
+            old_distance = self._distance(self.prev_sheep[i], self.target)
             new_distance = self._distance(sheep, self.target)
+
             if new_distance < old_distance:
-                total_reward += config.SHEEP_MOVE_TOWARD_TARGET_REWARD  # Reward if sheep gets closer
+                total_reward += config.SHEEP_MOVE_TOWARD_TARGET_REWARD
 
             if new_distance < 1 and new_distance < old_distance:
                 total_reward += config.SHEEP_CAPTURED_REWARD
 
-        # Penalty for hitting walls (if the dog doesn’t move)
+        # Reward for reducing the max sheep distance from the target
+        old_max_dist = max(self._distance(s, self.target) for s in self.prev_sheep)
+        new_max_dist = max(self._distance(s, self.target) for s in self.sheep)
+
+        if new_max_dist < old_max_dist:
+            total_reward += config.SHEEP_HERDING_REWARD  # Reward if the farthest sheep gets closer
+
+        # Penalty if the sheep spread out too much
+        sheep_positions = [self._distance(s, self.target) for s in self.sheep]
+        spread_penalty = max(sheep_positions) - min(sheep_positions)
+        total_reward -= config.SHEEP_SPREAD_PENALTY * spread_penalty  # Penalize large spread
+
+        # Penalty for dogs hitting walls (not moving)
         for i, dog in enumerate(self.dogs):
             if dog == self.prev_dogs[i]:  # If the position didn’t change
                 total_reward -= config.DOG_HIT_WALL_PENALTY
 
-        # Reward for herding all sheep to the target
+        # Reward for successfully herding all sheep to the target
         if all(sheep == self.target for sheep in self.sheep):
             total_reward += config.HERD_ALL_SHEEP_REWARD
 

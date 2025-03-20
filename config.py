@@ -1,6 +1,7 @@
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).parent
+OUTPUT_DIR = "output"
 GRID_SIZE = 10
 PYGAME_SCALE = 80
 NUM_DOGS = 3
@@ -10,37 +11,29 @@ MIN_DISTANCE_SHEEP = 2
 SHEEP_VISION_RANGE = GRID_SIZE*4/5
 
 # Reward settings
-DOG_MOVE_TOWARD_SHEEP_REWARD = 2
-DOG_MOVE_AWAY_PENALTY = 2
-SHEEP_MOVE_TOWARD_TARGET_REWARD = 5
-SHEEP_CAPTURED_REWARD = 10
-SHEEP_NEAR_TARGET_REWARD = 15
-SHEEP_MOVE_AWAY_PENALTY = 5
-DOG_HIT_WALL_PENALTY = 5
-HERD_ALL_SHEEP_REWARD = 100
+# Dog movement rewards
+DOG_MOVE_TOWARD_SHEEP_REWARD = 0.5
+DOG_MOVE_AWAY_PENALTY = -0.5
+DOG_HIT_WALL_PENALTY = -1.0 # Not moving
+
+# Sheep movement rewards
+SHEEP_MOVE_TOWARD_TARGET_REWARD = 1.0
+SHEEP_CAPTURED_REWARD = 5.0
+
+# Herding efficiency
+SHEEP_HERDING_REWARD = 2.0
+SHEEP_SPREAD_PENALTY = -0.2
+
+# Final success reward
+HERD_ALL_SHEEP_REWARD = 20.0
 
 
 # Miscellaneous settings
 RANDOM_SEED = None
 
-# DQN Hyperparameters
-STATE_SIZE = GRID_SIZE * GRID_SIZE
-ACTION_SIZE = 4  # Up, Down, Left, Right
-HIDDEN_SIZE = 128
-
-# Training Parameters
-BATCH_SIZE = 32  # Number of experiences sampled from replay buffer
-GAMMA = 0.5  # Discount factor for future rewards
-LEARNING_RATE = 0.01  # Learning rate for optimizer
-MEMORY_SIZE = 10000  # Maximum size of replay buffer
-TARGET_UPDATE = 10  # Number of episodes before updating target network
 EPSILON = 1.0  # Initial epsilon for epsilon-greedy policy
-EPSILON_MIN = 0.01  # Minimum epsilon
-EPSILON_DECAY = 0.995  # Epsilon decay rate
-
-# Training Control
-NUM_EPISODES = 1000  # Total number of training episodes
-MAX_STEPS_PER_EPISODE = 200  # Max steps per episode
+EPSILON_MIN = 0.01
+EPSILON_DECAY = 0.995
 
 # Path to images
 DOG_IMAGE = ROOT_DIR / "images/dog.png"

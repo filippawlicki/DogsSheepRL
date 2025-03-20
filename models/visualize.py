@@ -14,7 +14,7 @@ obs, _ = env.reset()
 
 state_dim = env.observation_space.shape[0]
 model = DQN(state_dim, config.NUM_DOGS)
-model.load_state_dict(torch.load("dqn_model.pth"))
+model.load_state_dict(torch.load(f"{config.OUTPUT_DIR}/dqn_model.pth"))
 model.eval()
 
 

@@ -8,7 +8,7 @@ import config
 from models.dqn_model import DQN
 
 class DQNAgent:
-    def __init__(self, state_dim, action_dim, lr=config.LEARNING_RATE, gamma=config.GAMMA, device="cpu"):
+    def __init__(self, state_dim, action_dim, lr=0.001, gamma=0.95, device="cpu"):
         self.device = device
         self.state_dim = state_dim
         self.action_dim = action_dim
@@ -65,6 +65,9 @@ class DQNAgent:
         target_q_values = rewards + (1 - dones) * self.gamma * next_q_values
 
         loss = self.loss_fn(q_values, target_q_values)
+
+        # Clip gradients to prevent exploding gradients
+        torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
 
         # Perform backpropagation
         self.optimizer.zero_grad()
