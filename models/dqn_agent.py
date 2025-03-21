@@ -19,19 +19,19 @@ class DQNAgent:
             self.epsilon_min = epsilon_min
             self.epsilon_decay = epsilon_decay
 
-        self.model = DQN(state_dim, action_dim).to(self.device)
-        self.target_model = DQN(state_dim, action_dim).to(self.device)
+        self.model = DQN(state_dim, config.GRID_SIZE, action_dim).to(self.device)
+        self.target_model =  DQN(state_dim, config.GRID_SIZE, action_dim).to(self.device)
         self.target_model.load_state_dict(self.model.state_dict())
         self.target_model.eval()
 
         self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
-        self.loss_fn = nn.MSELoss()
-        self.memory = deque(maxlen=1000)
+        self.loss_fn = nn.SmoothL1Loss()
+        self.memory = deque(maxlen=10000)
 
     def select_action(self, state):
         """Given a state, return an action for each dog."""
-        if self.epsilon_greedy and random.random() < self.epsilon:  # Eksploracja
-            return np.random.randint(0, 4, size=(self.action_dim,))  # Losowa akcja
+        if self.epsilon_greedy and random.random() < self.epsilon:  # Exploration
+            return np.random.randint(0, 4, size=(self.action_dim,))  # Random action for each dog
         else:  # Eksploatacja
             with torch.no_grad():
                 state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(self.device)
@@ -70,12 +70,15 @@ class DQNAgent:
 
         loss = self.loss_fn(q_values, target_q_values)
 
-        # Clip gradients to prevent exploding gradients
-        torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+
 
         # Perform backpropagation
         self.optimizer.zero_grad()
         loss.backward()
+
+        # Clip gradients to prevent exploding gradients
+        torch.nn.utils.clip_grad_norm_(self.model.parameters(), 100)
+
         self.optimizer.step()
 
         self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)

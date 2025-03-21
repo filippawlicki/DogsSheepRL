@@ -1,4 +1,4 @@
-import gym
+import gymnasium as gym
 import numpy as np
 import random
 
@@ -126,8 +126,36 @@ class DogsSheepEnv(gym.Env):
         return math.sqrt((pos1[0] - pos2[0]) ** 2 + (pos1[1] - pos2[1]) ** 2)
 
     def _get_observation(self):
-        """Returns a vector with positions of dogs, sheep, and target."""
-        return np.array([*sum(self.dogs, []), *sum(self.sheep, []), *self.target])
+        """Returns a multi-channel observation tensor representing the environment."""
+
+        # Initialize multi-channel observation
+        obs = np.zeros((5, self.grid_size, self.grid_size), dtype=np.float32)
+
+        # Channel 1: Dog positions (binary mask)
+        for x, y in self.dogs:
+            obs[0, x, y] = 1
+
+            # Channel 2: Sheep positions (binary mask)
+        for x, y in self.sheep:
+            obs[1, x, y] = 1
+
+            # Channel 3: Target position (binary mask)
+        tx, ty = self.target
+        obs[2, tx, ty] = 1
+
+        # Channel 4: Distance to nearest sheep for each grid cell
+        for i in range(self.grid_size):
+            for j in range(self.grid_size):
+                min_dist = min(np.linalg.norm([i - sx, j - sy]) for sx, sy in self.sheep)
+                obs[3, i, j] = min_dist / self.grid_size  # Normalize to [0, 1]
+
+        # Channel 5: Distance to target for each grid cell
+        for i in range(self.grid_size):
+            for j in range(self.grid_size):
+                dist = np.linalg.norm([i - tx, j - ty])
+                obs[4, i, j] = dist / self.grid_size  # Normalize to [0, 1]
+
+        return obs  # Shape: (5, grid_size, grid_size)
 
     def _check_done(self):
         """Checks if all sheep reached the target or were captured."""
@@ -139,16 +167,11 @@ class DogsSheepEnv(gym.Env):
         """Compute the reward for the current state."""
         total_reward = 0
 
-        # Reward for each dog moving toward the closest sheep
+        # Reward for moving dogs, to encourage them to move
         for i, dog in enumerate(self.dogs):
-            closest_sheep = min(self.sheep, key=lambda s: self._distance(dog, s))
-            old_distance = self._distance(self.prev_dogs[i], closest_sheep)
-            new_distance = self._distance(dog, closest_sheep)
+            if dog != self.prev_dogs[i]:
+                total_reward += config.DOG_MOVE_REWARD
 
-            if new_distance < old_distance:
-                total_reward += config.DOG_MOVE_TOWARD_SHEEP_REWARD
-            else:
-                total_reward -= config.DOG_MOVE_AWAY_PENALTY
 
         # Reward for sheep moving toward target
         for i, sheep in enumerate(self.sheep):
@@ -168,15 +191,18 @@ class DogsSheepEnv(gym.Env):
         if new_max_dist < old_max_dist:
             total_reward += config.SHEEP_HERDING_REWARD  # Reward if the farthest sheep gets closer
 
-        # Penalty if the sheep spread out too much
-        sheep_positions = [self._distance(s, self.target) for s in self.sheep]
-        spread_penalty = max(sheep_positions) - min(sheep_positions)
-        total_reward -= config.SHEEP_SPREAD_PENALTY * spread_penalty  # Penalize large spread
+        # Small penalty for every step (to encourage faster completion)
+        total_reward -= 0.1
+
+        # Penalty if every sheep is not moving (i.e., if no sheep has moved since last step)
+        all_sheep_stationary = all(sheep == prev_sheep for sheep, prev_sheep in zip(self.sheep, self.prev_sheep))
+        if all_sheep_stationary:
+            total_reward -= config.SHEEP_NOT_MOVING_PENALTY  # Add your penalty here
 
         # Penalty for dogs hitting walls (not moving)
         for i, dog in enumerate(self.dogs):
             if dog == self.prev_dogs[i]:  # If the position didn’t change
-                total_reward -= config.DOG_HIT_WALL_PENALTY
+                total_reward += config.DOG_HIT_WALL_PENALTY
 
         # Reward for successfully herding all sheep to the target
         if all(sheep == self.target for sheep in self.sheep):

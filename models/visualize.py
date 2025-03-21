@@ -12,9 +12,9 @@ env = DogsSheepEnv(grid_size=config.GRID_SIZE, num_dogs=config.NUM_DOGS, num_she
 # Get the initial observation
 obs, _ = env.reset()
 
-state_dim = env.observation_space.shape[0]
-model = DQN(state_dim, config.NUM_DOGS)
-model.load_state_dict(torch.load(f"{config.OUTPUT_DIR}/dqn_model.pth"))
+state_dim = obs.shape[0]
+model = DQN(state_dim, config.GRID_SIZE, config.NUM_DOGS)
+model.load_state_dict(torch.load(f"{config.OUTPUT_DIR}/best_reward_model.pth"))
 model.eval()
 
 
@@ -25,7 +25,8 @@ def select_action(model, state):
     q_values = model(state_tensor)
 
     # Select the action with the highest Q-value for each dog
-    actions = q_values.argmax(dim=2).squeeze().cpu().numpy()
+    #actions = q_values.argmax(dim=2).squeeze().cpu().numpy()
+    actions = q_values.argmax(dim=-1).squeeze().cpu().numpy()
     #print("Actions:", actions)
 
   return actions
