@@ -6,10 +6,28 @@ import config
 import gymnasium as gym
 from gymnasium import envs
 from gymnasium.envs.registration import register
+from gymnasium.wrappers import RecordVideo, RecordEpisodeStatistics
 import matplotlib.pyplot as plt
 from scipy.stats import zscore
+import logging
 
 Path(config.OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
+
+
+# Training hyperparameters
+episodes = 500
+max_steps = 500
+checkpoint_freq = 1
+print_freq = 1
+batch_size = 64
+lr = 0.0005
+gamma = 0.99
+epsilon_greedy = True
+epsilon = 1.0
+epsilon_min = 0.05
+epsilon_decay = 0.996
+
+# Environment initialization
 
 env_id = 'DogsSheep-v0'
 
@@ -20,30 +38,14 @@ if env_id not in envs.registry:
         entry_point='envs.dogs_sheep_env:DogsSheepEnv',
         max_episode_steps=1000,
     )
-
-# Training hyperparameters
-episodes = 500
-max_steps = 500
-checkpoint_freq = 50
-print_freq = 1
-batch_size = 64
-lr = 0.0005
-gamma = 0.99
-epsilon_greedy = True
-epsilon = 1.0
-epsilon_min = 0.05
-epsilon_decay = 0.9999
-
-# Environment initialization
 env = gym.make('DogsSheep-v0', grid_size=config.GRID_SIZE, num_dogs=config.NUM_DOGS, num_sheep=config.NUM_SHEEP)
 
-# Get an initial observation (list of all positions)
+#Get an initial observation (list of all positions)
 observation, _ = env.reset()
 
-# Pass observation shape
-state_dim = observation.shape[0]
+state_dim = len(observation)
 
-device = torch.device("mps" if torch.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device("cpu")
 print("Device:", device)
 
 agent = DQNAgent(state_dim, config.NUM_DOGS, lr=lr, gamma=gamma, device=device, epsilon_greedy=epsilon_greedy, epsilon=epsilon, epsilon_min=epsilon_min, epsilon_decay=epsilon_decay)
@@ -66,6 +68,7 @@ for episode in range(episodes):
     episode_reward = 0
     episode_loss = 0
     for step in range(max_steps):
+        #env.render()
         action = agent.select_action(state)
         #print("Action:", action)  # Debugging line
 
@@ -77,28 +80,17 @@ for episode in range(episodes):
         total_reward += reward
         episode_reward += reward
 
-        loss = agent.train(batch_size)
-        if loss is not None:
-            episode_loss += loss
-
         if done or truncated:
             break
 
+    loss = agent.train(batch_size)
+    if loss is not None:
+        episode_loss += loss
     agent.update_target_model()
     rewards.append(episode_reward)
     losses.append(episode_loss)
     epsilons.append(agent.epsilon)
-
-    if (episode + 1) % print_freq == 0:
-        print(f"Episode {episode + 1}/{episodes}, Reward: {total_reward}, Loss: {episode_loss}")
-
-    # Save best model based on reward
-    if episode_reward > best_reward:
-        best_reward = episode_reward
-        best_reward_model = agent.model.state_dict()  # Save the model's state_dict
-        formatted_loss = f"{episode_loss:.2f}"
-        torch.save(agent.model.state_dict(), f"{config.OUTPUT_DIR}/best_reward_model.pth")
-        print(f"Best reward model saved at episode {episode + 1}")
+    logging.info(f"episode: {episode + 1}/{episodes}, reward: {total_reward}, loss: {episode_loss}")
 
     # Checkpoint model
     if (episode + 1) % checkpoint_freq == 0:
