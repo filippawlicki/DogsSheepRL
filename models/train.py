@@ -22,10 +22,10 @@ if env_id not in envs.registry:
     )
 
 # Training hyperparameters
-episodes = 500
+episodes = 10000
 max_steps = config.MAX_EPISODE_STEPS
 checkpoint_freq = 50
-print_freq = 1
+print_freq = 50
 batch_size = 64
 lr = 0.0005
 gamma = 0.99
@@ -98,7 +98,7 @@ for episode in range(episodes):
         best_reward_model = agent.model.state_dict()  # Save the model's state_dict
         formatted_loss = f"{episode_loss:.2f}"
         torch.save(agent.model.state_dict(), f"{config.OUTPUT_DIR}/best_reward_model.pth")
-        print(f"Best reward model saved at episode {episode + 1}")
+        print(f"Best reward model saved at episode {episode + 1} - Reward: {best_reward}, Loss: {episode_loss}")
 
     # Checkpoint model
     if (episode + 1) % checkpoint_freq == 0:

@@ -40,7 +40,7 @@ class DogsSheepEnv(gym.Env):
         # Send target information to Prolog
         self._send_target_to_prolog()
 
-        self.state_history = set()  # To track the history of states
+        self.state_history = {}  # To track the history of states
 
     def _send_target_to_prolog(self):
         prolog.retractall("target_position(_, _)")  # Clear existing target position
@@ -75,10 +75,20 @@ class DogsSheepEnv(gym.Env):
         self._move_sheep()
 
         done = self._check_done()
-        truncated = False  # Not used in this environment
+        truncated = self._check_repeated_state()  # Not used in this environment
         reward = self._compute_reward()
 
         return self._get_observation(), reward, bool(done), bool(truncated), {}
+
+    def _check_repeated_state(self):
+        state_tuple = tuple(tuple(d) for d in self.dogs) + tuple(tuple(s) for s in self.sheep)
+
+        if state_tuple in self.state_history:
+            self.state_history[state_tuple] += 1
+        else:
+            self.state_history[state_tuple] = 1
+
+        return self.state_history[state_tuple] >= 3  # Truncate if the same state is repeated 3 times
 
     def _move_dogs(self, actions):
         directions = {
@@ -186,6 +196,8 @@ class DogsSheepEnv(gym.Env):
                 new_distance = self._distance(dog, nearest_sheep)
                 if new_distance < old_distance:
                     total_reward += config.DOG_MOVE_TOWARD_SHEEP_REWARD
+                else:
+                    total_reward += config.DOG_MOVE_AWAY_PENALTY
 
         # Reward for sheep moving toward target
         for i, sheep in enumerate(self.sheep):
@@ -194,6 +206,8 @@ class DogsSheepEnv(gym.Env):
 
             if new_distance < old_distance:
                 total_reward += config.SHEEP_MOVE_TOWARD_TARGET_REWARD
+            else:
+                total_reward += config.SHEEP_SPREAD_PENALTY
 
             if new_distance < 1 and new_distance < old_distance:
                 total_reward += config.SHEEP_CAPTURED_REWARD
@@ -204,6 +218,9 @@ class DogsSheepEnv(gym.Env):
 
         if new_max_dist < old_max_dist:
             total_reward += config.SHEEP_HERDING_REWARD  # Reward if the farthest sheep gets closer
+
+        if new_max_dist > old_max_dist:
+            total_reward += config.SHEEP_SPREAD_PENALTY  # Penalty if the farthest sheep gets farther
 
         # Small penalty for every step (to encourage faster completion)
         total_reward -= 0.1
