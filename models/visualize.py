@@ -4,13 +4,14 @@ import torch
 import numpy as np
 from envs.dogs_sheep_env import DogsSheepEnv
 import config
-from train_alt import QNetwork as DQN
+from train_alt import QNetwork as DQN  # Upewnij się, że nazwa klasy odpowiada Twojej implementacji
+
 
 def decode_action(action_int, num_dogs):
     """
-    Given the composite action (an integer), decode it into a list of
-    individual actions for each dog. For N dogs and 4 moves per dog,
-    the composite action is represented in base-4.
+    Dekoduje złożoną akcję (w postaci pojedynczej liczby) na listę akcji dla każdego psa.
+    Dla N psów i 4 możliwych ruchów (0: góra, 1: dół, 2: lewo, 3: prawo)
+    zakładamy, że złożona akcja zapisana jest w systemie liczbowym o podstawie 4.
     """
     actions = []
     for _ in range(num_dogs):
@@ -18,13 +19,14 @@ def decode_action(action_int, num_dogs):
         action_int //= 4
     return actions[::-1]
 
+
 def process_observation(obs):
     """
-    Convert the observation dictionary to a single flat float32 numpy array.
-    The state consists of:
-      - Dogs positions (num_dogs x 2)
-      - Sheep positions (num_sheep x 2)
-      - Target position (2)
+    Przekształca obserwację (słownik) w płaski wektor typu float32.
+    Wektor zawiera pozycje psów, owiec oraz cel:
+      - psy: num_dogs x 2,
+      - owce: num_sheep x 2,
+      - cel: 2.
     """
     return np.concatenate([
         obs["dogs"].flatten(),
@@ -32,52 +34,51 @@ def process_observation(obs):
         obs["target"].flatten()
     ]).astype(np.float32)
 
-# Create the environment
-env = DogsSheepEnv(
-    grid_size=config.GRID_SIZE,
-    num_dogs=config.NUM_DOGS,
-    num_sheep=config.NUM_SHEEP
-)
 
-# Get the initial observation and process it
+# Utworzenie środowiska
+env = DogsSheepEnv(grid_size=config.GRID_SIZE, num_dogs=config.NUM_DOGS, num_sheep=config.NUM_SHEEP)
+
+# Pobranie początkowej obserwacji i przetworzenie jej na wektor stanu
 obs, _ = env.reset()
 state = process_observation(obs)
 
-# Determine the state vector dimension:
-# For dogs: num_dogs * 2, for sheep: num_sheep * 2, and target: 2.
+# Obliczenie wymiarów stanu i przestrzeni akcji
 state_dim = config.NUM_DOGS * 2 + config.NUM_SHEEP * 2 + 2
-# Define the composite action space size (4^(num_dogs)).
-action_dim = 4 ** config.NUM_DOGS
+action_dim = 4 ** config.NUM_DOGS  # Złożona przestrzeń akcji dla N psów
 
-# Load the trained model
+# Utworzenie modelu i wczytanie stanu wytrenowanego modelu
 model = DQN(state_dim, action_dim)
-model.load_state_dict(torch.load(f"{config.OUTPUT_DIR}/dqn_model_final.pth", map_location=torch.device("cpu")))
+model.load_state_dict(torch.load(f"{config.OUTPUT_DIR}/dqn_model_episode_450.pth", map_location=torch.device('cpu')))
 model.eval()
+
 
 def select_action(model, state):
     """
-    Selects an action based on the current state using the trained model.
-    Returns a list of actions (one for each dog).
+    Na podstawie bieżącego stanu wybiera akcję używając wytrenowanego modelu.
+    Zwraca listę akcji, czyli jeden ruch dla każdego psa.
     """
     with torch.no_grad():
         state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
         q_values = model(state_tensor)
         composite_action = int(q_values.argmax(dim=-1).item())
-        actions = decode_action(composite_action, config.NUM_DOGS)
-        return actions
+        return decode_action(composite_action, config.NUM_DOGS)
 
-print("Model is playing. Press Q or close the window to quit.")
+
+print("Model gra. Naciśnij Q lub zamknij okno, aby zakończyć wizualizację.")
 
 done = False
 while not done:
+    # Renderowanie środowiska (odświeża widok)
     env.render()
 
-    # Select actions using the trained model, then update state from the new observation.
+    # Wybór akcji przez model
     actions = select_action(model, state)
-    obs, reward, done, truncated, info = env.step(actions)
+
+    # Wykonanie ruchu w środowisku
+    obs, reward, done, truncated, _ = env.step(actions)
     state = process_observation(obs)
 
-    # Process pygame events so we can exit with Q or by closing the window.
+    # Obsługa zdarzeń Pygame
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             pygame.quit()
