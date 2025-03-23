@@ -40,6 +40,8 @@ class DogsSheepEnv(gym.Env):
         # Send target information to Prolog
         self._send_target_to_prolog()
 
+        self.state_history = set()  # To track the history of states
+
     def _send_target_to_prolog(self):
         prolog.retractall("target_position(_, _)")  # Clear existing target position
         prolog.assertz(f"target_position({self.target[0]}, {self.target[1]})")
@@ -59,6 +61,7 @@ class DogsSheepEnv(gym.Env):
 
         self._send_target_to_prolog()
         observation = self._get_observation()
+        self.state_history.clear()  # Clear state history on reset
         return observation, {}
 
     def step(self, dog_actions):
@@ -172,6 +175,17 @@ class DogsSheepEnv(gym.Env):
             if dog != self.prev_dogs[i]:
                 total_reward += config.DOG_MOVE_REWARD
 
+            # Reward for dogs approaching the nearest sheep that is not in the target
+            nearest_sheep = min(
+                (sheep for sheep in self.sheep if sheep != self.target),
+                key=lambda s: self._distance(dog, s),
+                default=None
+            )
+            if nearest_sheep:
+                old_distance = self._distance(self.prev_dogs[i], nearest_sheep)
+                new_distance = self._distance(dog, nearest_sheep)
+                if new_distance < old_distance:
+                    total_reward += config.DOG_MOVE_TOWARD_SHEEP_REWARD
 
         # Reward for sheep moving toward target
         for i, sheep in enumerate(self.sheep):
@@ -197,7 +211,7 @@ class DogsSheepEnv(gym.Env):
         # Penalty if every sheep is not moving (i.e., if no sheep has moved since last step)
         all_sheep_stationary = all(sheep == prev_sheep for sheep, prev_sheep in zip(self.sheep, self.prev_sheep))
         if all_sheep_stationary:
-            total_reward -= config.SHEEP_NOT_MOVING_PENALTY  # Add your penalty here
+            total_reward += config.SHEEP_NOT_MOVING_PENALTY  # Add your penalty here
 
         # Penalty for dogs hitting walls (not moving)
         for i, dog in enumerate(self.dogs):

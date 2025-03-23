@@ -31,8 +31,8 @@ class DQNAgent:
     def select_action(self, state):
         """Given a state, return an action for each dog."""
         if self.epsilon_greedy and random.random() < self.epsilon:  # Exploration
-            return np.random.randint(0, 4, size=(self.action_dim,))  # Random action for each dog
-        else:  # Eksploatacja
+            return np.random.randint(0, 4, size=(self.action_dim,))  # Random action
+        else:  # Exploitation
             with torch.no_grad():
                 state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(self.device)
                 q_values = self.model(state_tensor)
@@ -69,7 +69,6 @@ class DQNAgent:
         target_q_values = rewards + (1 - dones) * self.gamma * next_q_values
 
         loss = self.loss_fn(q_values, target_q_values)
-
 
 
         # Perform backpropagation

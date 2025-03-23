@@ -23,7 +23,7 @@ if env_id not in envs.registry:
 
 # Training hyperparameters
 episodes = 500
-max_steps = 500
+max_steps = config.MAX_EPISODE_STEPS
 checkpoint_freq = 50
 print_freq = 1
 batch_size = 64
@@ -32,7 +32,7 @@ gamma = 0.99
 epsilon_greedy = True
 epsilon = 1.0
 epsilon_min = 0.05
-epsilon_decay = 0.9999
+epsilon_decay = 1 - 1e-5
 
 # Environment initialization
 env = gym.make('DogsSheep-v0', grid_size=config.GRID_SIZE, num_dogs=config.NUM_DOGS, num_sheep=config.NUM_SHEEP)
