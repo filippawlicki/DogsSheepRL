@@ -90,7 +90,7 @@ for episode in range(episodes):
     epsilons.append(agent.epsilon)
 
     if (episode + 1) % print_freq == 0:
-        print(f"Episode {episode + 1}/{episodes}, Reward: {total_reward}, Loss: {episode_loss}")
+        print(f"Episode {episode + 1}/{episodes}, Reward: {total_reward}, Loss: {episode_loss}, Epsilon: {agent.epsilon}")
 
     # Save best model based on reward
     if episode_reward > best_reward:
