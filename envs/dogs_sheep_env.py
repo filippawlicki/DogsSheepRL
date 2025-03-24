@@ -113,17 +113,17 @@ class DogsSheepEnv(gym.Env):
 
                 # Prolog query to move sheep if occupied
                 query = f"push_sheep({self.dogs[i][0]}, {self.dogs[i][1]}, {move[0]}, {move[1]}, {sheep_prolog}, NewSheepList)"
-                print(f"\nProlog query: {query}")  # Debugging line
+                # print(f"\nProlog query: {query}")  # Debugging line
                 result = list(prolog.query(query))
-                print("result: ", result)
+                # print("result: ", result)
 
                 if result:
                     new_sheep_list = result[0]['NewSheepList']
-                    print("new_sheep_list: ", new_sheep_list)
+                    # print("new_sheep_list: ", new_sheep_list)
                     cleaned_sheep_list = [sheep.strip(',()') for sheep in new_sheep_list if sheep.strip(',()')]
-                    print("cleaned_sheep_list: ", cleaned_sheep_list)
+                    # print("cleaned_sheep_list: ", cleaned_sheep_list)
                     self.sheep = [list(map(int, sheep.split(','))) for sheep in cleaned_sheep_list]
-                    print("self.sheep: ", self.sheep)
+                    # print("self.sheep: ", self.sheep)
 
 
     def _move_sheep(self):
