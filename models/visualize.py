@@ -48,7 +48,7 @@ action_dim = 4 ** config.NUM_DOGS  # Złożona przestrzeń akcji dla N psów
 
 # Utworzenie modelu i wczytanie stanu wytrenowanego modelu
 model = DQN(state_dim, action_dim)
-model.load_state_dict(torch.load(f"{config.OUTPUT_DIR}/dqn_model_episode_450.pth", map_location=torch.device('cpu')))
+model.load_state_dict(torch.load(f"{config.OUTPUT_DIR}/dqn_model_5x5+2d+2o.pth"))
 model.eval()
 
 
@@ -65,27 +65,28 @@ def select_action(model, state):
 
 
 print("Model gra. Naciśnij Q lub zamknij okno, aby zakończyć wizualizację.")
+while True:
+    env.reset()
+    done = False
+    while not done:
+        # Renderowanie środowiska (odświeża widok)
+        env.render()
 
-done = False
-while not done:
-    # Renderowanie środowiska (odświeża widok)
-    env.render()
+        # Wybór akcji przez model
+        actions = select_action(model, state)
 
-    # Wybór akcji przez model
-    actions = select_action(model, state)
+        # Wykonanie ruchu w środowisku
+        obs, reward, done, truncated, _ = env.step(actions)
+        state = process_observation(obs)
 
-    # Wykonanie ruchu w środowisku
-    obs, reward, done, truncated, _ = env.step(actions)
-    state = process_observation(obs)
-
-    # Obsługa zdarzeń Pygame
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            pygame.quit()
-            sys.exit()
-        elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_q:
+        # Obsługa zdarzeń Pygame
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_q:
+                    pygame.quit()
+                    sys.exit()
 
 env.close()

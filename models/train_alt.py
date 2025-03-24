@@ -79,24 +79,24 @@ def decode_action(action_int, num_dogs):
 # -------------------------------------------------------------------
 # Hyperparameters for training
 # -------------------------------------------------------------------
-EPISODES = 5000         # Total episodes for training
-MAX_STEPS = 500         # Maximum steps per episode
-BATCH_SIZE = 64
+EPISODES = 100000         # Total episodes for training
+MAX_STEPS = 50         # Maximum steps per episode
+BATCH_SIZE = 128
 GAMMA = 0.99               # Discount factor
-LR = 1e-3                  # Learning rate
-TARGET_UPDATE = 10         # Frequency (in episodes) to update target network
-REPLAY_BUFFER_CAPACITY = 10000
-EPS_START = 1.0            # Initial epsilon for epsilon-greedy strategy
-EPS_END = 0.05             # Minimum epsilon
-EPS_DECAY = 300            # Controls the decay rate of epsilon
-CHECKPOINT_FREQ = 50       # Save model checkpoint every 50 episodes
+LR = 1e-4                  # Learning rate
+TARGET_UPDATE = 25         # Frequency (in episodes) to update target network
+REPLAY_BUFFER_CAPACITY = 50000
+EPS_START = 1.2            # Initial epsilon for epsilon-greedy strategy
+EPS_END = 0.001             # Minimum epsilon
+EPS_DECAY = 1500            # Controls the decay rate of epsilon
+CHECKPOINT_FREQ = 1000       # Save model checkpoint every 50 episodes
 
 # -------------------------------------------------------------------
 # Main training loop
 # -------------------------------------------------------------------
 def save_plots(episode_rewards, episode_losses, episode):
     """ Save reward and loss plots as images. """
-    plt.figure(figsize=(12, 5))
+    plt.figure(figsize=(24, 8))
 
     plt.subplot(1, 2, 1)
     plt.plot(episode_rewards, label='Episode Reward')
@@ -160,65 +160,60 @@ def train():
     all_losses = []       # All mini-batch losses across episodes
 
     for episode in range(EPISODES):
-        # Reset the environment; note reset() returns (observation, info)
         obs, _ = env.reset()
         state = process_observation(obs)
         total_reward = 0
         losses_in_episode = []
 
         for t in range(MAX_STEPS):
-            # --- Select action using epsilon-greedy ---
+            # Epsilon-greedy action selection
             if random.random() < epsilon:
                 composite_action = random.randrange(action_dim)
             else:
                 with torch.no_grad():
                     state_tensor = torch.from_numpy(state).unsqueeze(0).to(device)
-                    q_values = policy_net(state_tensor)
-                    composite_action = int(q_values.argmax(dim=1).item())
+                    q_values = policy_net(state_tensor).cpu().numpy()
+                    composite_action = int(np.argmax(q_values))
 
-            # Decode the composite action into a list (one action per dog)
+            # Decode action and take step
             dog_actions = decode_action(composite_action, config.NUM_DOGS)
-
-            # Take a step in the environment
-            next_obs, reward, done, truncated, info = env.step(dog_actions)
+            next_obs, reward, done, truncated, _ = env.step(dog_actions)
             next_state = process_observation(next_obs)
             total_reward += reward
 
-            # Store the transition in replay buffer
+            # Store in replay buffer
             replay_buffer.push(state, composite_action, reward, next_state, done)
             state = next_state
 
-            # --- Learning: sample a mini-batch and update QNetwork ---
+            # Train only if buffer is ready
             if len(replay_buffer) >= BATCH_SIZE:
                 batch_state, batch_action, batch_reward, batch_next_state, batch_done = replay_buffer.sample(BATCH_SIZE)
 
-                batch_state      = torch.from_numpy(batch_state).to(device)
+                batch_state = torch.from_numpy(batch_state).to(device)
                 batch_next_state = torch.from_numpy(batch_next_state).to(device)
-                batch_action     = torch.tensor(batch_action, dtype=torch.long).unsqueeze(1).to(device)
-                batch_reward     = torch.tensor(batch_reward, dtype=torch.float32).unsqueeze(1).to(device)
-                batch_done       = torch.tensor(batch_done, dtype=torch.float32).unsqueeze(1).to(device)
+                batch_action = torch.tensor(batch_action, dtype=torch.long).unsqueeze(1).to(device)
+                batch_reward = torch.tensor(batch_reward, dtype=torch.float32).unsqueeze(1).to(device)
+                batch_done = torch.tensor(batch_done, dtype=torch.float32).unsqueeze(1).to(device)
 
-                # Current Q values for the performed actions
+                # Q-learning update
                 current_q_values = policy_net(batch_state).gather(1, batch_action)
-                # Compute the target Q value using the target network.
                 with torch.no_grad():
                     max_next_q_values = target_net(batch_next_state).max(1)[0].unsqueeze(1)
                     target_q_values = batch_reward + GAMMA * max_next_q_values * (1 - batch_done)
 
-                loss = nn.MSELoss()(current_q_values, target_q_values)
+                loss = nn.SmoothL1Loss()(current_q_values, target_q_values)
                 optimizer.zero_grad()
                 loss.backward()
-                torch.nn.utils.clip_grad_norm_(policy_net.parameters(), 1.0)  # Gradient Clipping
+                torch.nn.utils.clip_grad_norm_(policy_net.parameters(), 5.0)
                 optimizer.step()
 
-                # Log the loss for this mini-batch
                 losses_in_episode.append(loss.item())
-                all_losses.append(loss.item())
 
-            if done:
+            if done or truncated:
                 break
 
-        # --- Epsilon decay ---
+
+    # --- Epsilon decay ---
         epsilon = EPS_END + (EPS_START - EPS_END) * np.exp(-episode / EPS_DECAY)
 
         # Compute average loss for the episode (if any updates occurred)

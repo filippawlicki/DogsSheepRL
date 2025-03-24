@@ -35,11 +35,13 @@ class DogsSheepEnv(gym.Env):
         )
 
         # Original action_space here; adjust if necessary for composite actions.
-        self.action_space = gym.spaces.Discrete(config.NUM_DOGS * 4)
+        self.action_space = gym.spaces.Discrete(4 ** config.NUM_DOGS)
         self.renderer = GameRenderer(grid_size)
 
         # Send target information to Prolog
         self._send_target_to_prolog()
+
+        self.steps = 0
 
     def _send_target_to_prolog(self):
         prolog.retractall("target_position(_, _)")
@@ -51,14 +53,8 @@ class DogsSheepEnv(gym.Env):
         self.sheep = self.np_random.integers(0, self.grid_size, size=(self.num_sheep, 2), dtype=int)
         self.target = self.np_random.integers(0, self.grid_size, size=2, dtype=int)
 
-        self.prev_dogs = self.dogs.copy()
-        self.prev_sheep = self.sheep.copy()
-
         self._send_target_to_prolog()
-
-        # Optionally, store an initial total distance
-        self.prev_total_distance = sum(self._distance(s, self.target) for s in self.sheep)
-
+        self.steps = 0
         observation = self._get_observation()
         return observation, {}
 
@@ -69,31 +65,62 @@ class DogsSheepEnv(gym.Env):
           - Returns: observation, reward, done, truncated, info.
           - Sheep avoid dogs.
         """
-        # Compute the total distance BEFORE movement using the distance function
-        old_total_distance = sum(self._distance(s, self.target) for s in self.sheep)
+        self.steps += 1
+        # Store previous sheep positions before movement
+        prev_sheep_positions = self.sheep.copy()
 
+        # Compute the total distance BEFORE movement
+        old_total_distance = sum(self._distance(s, self.target) for s in self.sheep)
+        #print("Dog actions: ", dog_actions)
         self._move_dogs(dog_actions)
         self._move_sheep()
 
         observation = self._get_observation()
 
-        # Compute reward and done flag using the _compute_reward method.
-        reward, done = self._compute_reward(old_total_distance)
+        # Compute reward using previous sheep positions
+        reward, done = self._compute_reward(old_total_distance, prev_sheep_positions)
         truncated = False  # Not used in this environment
 
         return observation, reward, done, truncated, {}
 
-    def _compute_reward(self, old_total_distance):
+    def _compute_reward(self, old_total_distance, prev_sheep_positions):
         """
-        Computes the reward as the reduction in the total distance of the sheep to the target.
-        A bonus reward is added if all sheep have reached the target.
+        Compute the reward based on:
+          - Reduction in total sheep distance to target.
+          - Rewarding only newly arrived sheep at the target.
+          - Penalizing movement away from the target.
         """
-        new_total_distance = sum(self._distance(s, self.target) for s in self.sheep)
-        reward = old_total_distance - new_total_distance
+        # Consider only sheep that are NOT at the target
+        moving_sheep = [s for s in self.sheep if not np.array_equal(s, self.target)]
 
+        # Compute total distance only for moving sheep
+        new_total_distance = sum(self._distance(s, self.target) for s in moving_sheep)
+
+        # Reward for reducing distance (only for moving sheep)
+        distance_delta = old_total_distance - new_total_distance  # Positive if sheep moved closer
+
+        if distance_delta > 0:
+            distance_reward = 1
+        else:
+            if distance_delta == 0:
+                distance_reward = -3
+            else:
+                distance_reward = -2
+        # Count only sheep that reached the target THIS STEP
+        newly_arrived_sheep = sum(
+            np.array_equal(s, self.target) and not np.array_equal(prev_sheep_positions[i], self.target)
+            for i, s in enumerate(self.sheep)
+        )
+        sheep_reward = newly_arrived_sheep * 5  # Reward per newly arrived sheep
+
+        # Large reward if all sheep reach the target
         done = self._check_done()
-        if done:
-            reward += 100  # Bonus reward when all sheep reach the target
+        goal_reward = 15 + 50 / self.steps if done else 0
+
+        # Total reward
+        reward = distance_reward + sheep_reward + goal_reward
+        #print(f"Distance delta: {distance_delta}")
+        #print(f"Distance reward: {distance_reward}")
 
         return reward, done
 

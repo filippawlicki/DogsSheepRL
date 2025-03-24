@@ -1,5 +1,4 @@
 pygame~=2.6.1
-gym~=0.26.2
 numpy~=2.2.4
 pyswip==0.3.0
 matplotlib~=3.10.1
