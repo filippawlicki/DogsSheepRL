@@ -4,14 +4,14 @@ import torch
 import numpy as np
 from envs.dogs_sheep_env import DogsSheepEnv
 import config
-from train_alt import QNetwork as DQN  # Upewnij się, że nazwa klasy odpowiada Twojej implementacji
+from train_alt import QNetwork as DQN
 
 
 def decode_action(action_int, num_dogs):
     """
-    Dekoduje złożoną akcję (w postaci pojedynczej liczby) na listę akcji dla każdego psa.
-    Dla N psów i 4 możliwych ruchów (0: góra, 1: dół, 2: lewo, 3: prawo)
-    zakładamy, że złożona akcja zapisana jest w systemie liczbowym o podstawie 4.
+    Decodes a composite action (as a single integer) into a list of actions (one per dog).
+    With N dogs each having 4 directional moves (0: up, 1: down, 2: left, 3: right),
+    this function decomposes the integer into its base-4 digits.
     """
     actions = []
     for _ in range(num_dogs):
@@ -22,11 +22,11 @@ def decode_action(action_int, num_dogs):
 
 def process_observation(obs):
     """
-    Przekształca obserwację (słownik) w płaski wektor typu float32.
-    Wektor zawiera pozycje psów, owiec oraz cel:
-      - psy: num_dogs x 2,
-      - owce: num_sheep x 2,
-      - cel: 2.
+    Transform the observation dictionary to a single flat float32 numpy array.
+    State consists of:
+      - Dogs positions (num_dogs x 2),
+      - Sheep positions (num_sheep x 2),
+      - Target position (2).
     """
     return np.concatenate([
         obs["dogs"].flatten(),
@@ -35,27 +35,25 @@ def process_observation(obs):
     ]).astype(np.float32)
 
 
-# Utworzenie środowiska
 env = DogsSheepEnv(grid_size=config.GRID_SIZE, num_dogs=config.NUM_DOGS, num_sheep=config.NUM_SHEEP)
 
-# Pobranie początkowej obserwacji i przetworzenie jej na wektor stanu
+# Get an initial observation (list of all positions)
 obs, _ = env.reset()
 state = process_observation(obs)
 
-# Obliczenie wymiarów stanu i przestrzeni akcji
 state_dim = config.NUM_DOGS * 2 + config.NUM_SHEEP * 2 + 2
 action_dim = 4 ** config.NUM_DOGS  # Złożona przestrzeń akcji dla N psów
 
-# Utworzenie modelu i wczytanie stanu wytrenowanego modelu
+# Load the trained model
 model = DQN(state_dim, action_dim)
-model.load_state_dict(torch.load(f"{config.OUTPUT_DIR}/dqn_model_5x5+2d+2o.pth"))
+model.load_state_dict(torch.load(f"{config.OUTPUT_DIR}/dqn_model_5x5+2d+2o.pth", map_location="cpu"))
 model.eval()
 
 
 def select_action(model, state):
     """
-    Na podstawie bieżącego stanu wybiera akcję używając wytrenowanego modelu.
-    Zwraca listę akcji, czyli jeden ruch dla każdego psa.
+    Based on the current state, selects an action using the trained model.
+    Returns a list of actions, i.e., one move for each dog.
     """
     with torch.no_grad():
         state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
@@ -64,22 +62,20 @@ def select_action(model, state):
         return decode_action(composite_action, config.NUM_DOGS)
 
 
-print("Model gra. Naciśnij Q lub zamknij okno, aby zakończyć wizualizację.")
+print("Model is playing. Press Q or close the window to stop the visualization.")
 while True:
     env.reset()
     done = False
     while not done:
-        # Renderowanie środowiska (odświeża widok)
         env.render()
 
-        # Wybór akcji przez model
         actions = select_action(model, state)
 
-        # Wykonanie ruchu w środowisku
+        # Make a step in the environment
         obs, reward, done, truncated, _ = env.step(actions)
         state = process_observation(obs)
 
-        # Obsługa zdarzeń Pygame
+        # Pygame event handling
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()

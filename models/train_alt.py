@@ -9,13 +9,13 @@ from gymnasium.envs.registration import register
 from gymnasium import envs
 import matplotlib.pyplot as plt
 import os
-
-# Import your configuration and environment.
+import time
 import config
 
-# -------------------------------------------------------------------
+# Check if the output directory exists, if not, create it.
+os.makedirs(config.OUTPUT_DIR, exist_ok=True)
+
 # Replay Buffer for storing transitions
-# -------------------------------------------------------------------
 class ReplayBuffer:
     def __init__(self, capacity):
         self.buffer = deque(maxlen=capacity)
@@ -31,14 +31,12 @@ class ReplayBuffer:
     def __len__(self):
         return len(self.buffer)
 
-# -------------------------------------------------------------------
 # Q-Network (a simple MLP)
-# -------------------------------------------------------------------
 class QNetwork(nn.Module):
     def __init__(self, input_dim, output_dim):
         super(QNetwork, self).__init__()
-        self.fc1 = nn.Linear(input_dim, 256)  # Increased from 128
-        self.fc2 = nn.Linear(256, 256)  # Increased from 128
+        self.fc1 = nn.Linear(input_dim, 256)
+        self.fc2 = nn.Linear(256, 256)
         self.fc3 = nn.Linear(256, output_dim)
 
     def forward(self, x):
@@ -47,9 +45,7 @@ class QNetwork(nn.Module):
         return self.fc3(x)
 
 
-# -------------------------------------------------------------------
 # Helpers to process observations and decode composite actions
-# -------------------------------------------------------------------
 def process_observation(obs):
     """
     Convert the observation dictionary to a single flat float32 numpy array.
@@ -76,10 +72,8 @@ def decode_action(action_int, num_dogs):
         action_int //= 4
     return actions[::-1]
 
-# -------------------------------------------------------------------
 # Hyperparameters for training
-# -------------------------------------------------------------------
-EPISODES = 100000         # Total episodes for training
+EPISODES = 350000         # Total episodes for training
 MAX_STEPS = 50         # Maximum steps per episode
 BATCH_SIZE = 128
 GAMMA = 0.99               # Discount factor
@@ -89,11 +83,9 @@ REPLAY_BUFFER_CAPACITY = 50000
 EPS_START = 1.2            # Initial epsilon for epsilon-greedy strategy
 EPS_END = 0.001             # Minimum epsilon
 EPS_DECAY = 1500            # Controls the decay rate of epsilon
-CHECKPOINT_FREQ = 1000       # Save model checkpoint every 50 episodes
+CHECKPOINT_FREQ = 50000       # Save model each checkpoint
 
-# -------------------------------------------------------------------
 # Main training loop
-# -------------------------------------------------------------------
 def save_plots(episode_rewards, episode_losses, episode):
     """ Save reward and loss plots as images. """
     plt.figure(figsize=(24, 8))
@@ -139,8 +131,7 @@ def train():
     # For each dog there are 4 moves; so total actions = 4^(num_dogs).
     action_dim = 4 ** config.NUM_DOGS
 
-    # --- Device selection: use GPU if available ---
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cpu")
     print(f"Using device: {device}")
 
     # Set up networks
@@ -213,7 +204,7 @@ def train():
                 break
 
 
-    # --- Epsilon decay ---
+    # Epsilon decay
         epsilon = EPS_END + (EPS_START - EPS_END) * np.exp(-episode / EPS_DECAY)
 
         # Compute average loss for the episode (if any updates occurred)
@@ -221,11 +212,11 @@ def train():
         episode_rewards.append(total_reward)
         episode_losses.append(avg_loss)
 
-        # --- Periodically update the target network ---
+        # Periodically update the target network
         if episode % TARGET_UPDATE == 0:
             target_net.load_state_dict(policy_net.state_dict())
 
-        # --- Save checkpoints ---
+        # Save checkpoints
         if (episode + 1) % CHECKPOINT_FREQ == 0:
             torch.save(policy_net.state_dict(), f"{config.OUTPUT_DIR}/dqn_model_episode_{episode+1}.pth")
             save_plots(episode_rewards, episode_losses, episode+1)
@@ -233,8 +224,12 @@ def train():
             f"Average Loss: {avg_loss:.4f}, Epsilon: {epsilon:.3f}")
 
     env.close()
+    # Save the final model
+    torch.save(policy_net.state_dict(), f"{config.OUTPUT_DIR}/dqn_model_final.pth")
     print("Training complete.")
 
-# -------------------------------------------------------------------
 if __name__ == "__main__":
+    start = time.time()
     train()
+    end = time.time()
+    print(f"Training took {end - start:.2f} seconds.")
