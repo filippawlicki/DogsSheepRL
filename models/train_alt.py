@@ -15,9 +15,7 @@ import config
 # Check if the output directory exists, if not, create it.
 os.makedirs(config.OUTPUT_DIR, exist_ok=True)
 
-# -------------------------------------------------------------------
 # Replay Buffer for storing transitions
-# -------------------------------------------------------------------
 class ReplayBuffer:
     def __init__(self, capacity):
         self.buffer = deque(maxlen=capacity)
@@ -33,9 +31,7 @@ class ReplayBuffer:
     def __len__(self):
         return len(self.buffer)
 
-# -------------------------------------------------------------------
 # Q-Network (a simple MLP)
-# -------------------------------------------------------------------
 class QNetwork(nn.Module):
     def __init__(self, input_dim, output_dim):
         super(QNetwork, self).__init__()
@@ -49,9 +45,7 @@ class QNetwork(nn.Module):
         return self.fc3(x)
 
 
-# -------------------------------------------------------------------
 # Helpers to process observations and decode composite actions
-# -------------------------------------------------------------------
 def process_observation(obs):
     """
     Convert the observation dictionary to a single flat float32 numpy array.
@@ -78,9 +72,7 @@ def decode_action(action_int, num_dogs):
         action_int //= 4
     return actions[::-1]
 
-# -------------------------------------------------------------------
 # Hyperparameters for training
-# -------------------------------------------------------------------
 EPISODES = 350000         # Total episodes for training
 MAX_STEPS = 50         # Maximum steps per episode
 BATCH_SIZE = 128
@@ -93,9 +85,7 @@ EPS_END = 0.001             # Minimum epsilon
 EPS_DECAY = 1500            # Controls the decay rate of epsilon
 CHECKPOINT_FREQ = 50000       # Save model each checkpoint
 
-# -------------------------------------------------------------------
 # Main training loop
-# -------------------------------------------------------------------
 def save_plots(episode_rewards, episode_losses, episode):
     """ Save reward and loss plots as images. """
     plt.figure(figsize=(24, 8))
