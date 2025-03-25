@@ -165,5 +165,5 @@ models/output/
 # PyPI configuration file
 .pypirc
 
-*.pth
+#*.pth
 *.pt

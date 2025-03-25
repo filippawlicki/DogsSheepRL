@@ -6,8 +6,10 @@ import config
 import gymnasium as gym
 from gymnasium import envs
 from gymnasium.envs.registration import register
+from gymnasium.wrappers import RecordVideo, RecordEpisodeStatistics
 import matplotlib.pyplot as plt
 from scipy.stats import zscore
+import logging
 
 Path(config.OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
 
@@ -66,6 +68,7 @@ for episode in range(episodes):
     episode_reward = 0
     episode_loss = 0
     for step in range(max_steps):
+        #env.render()
         action = agent.select_action(state)
         #print("Action:", action)  # Debugging line
 
@@ -77,13 +80,12 @@ for episode in range(episodes):
         total_reward += reward
         episode_reward += reward
 
-        loss = agent.train(batch_size)
-        if loss is not None:
-            episode_loss += loss
-
         if done or truncated:
             break
 
+    loss = agent.train(batch_size)
+    if loss is not None:
+        episode_loss += loss
     agent.update_target_model()
     rewards.append(episode_reward)
     losses.append(episode_loss)

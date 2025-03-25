@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import random
-from collections import deque
+from collections import namedtuple, deque
 import config
 from models.dqn_model import DQN
 
@@ -36,9 +36,7 @@ class DQNAgent:
             with torch.no_grad():
                 state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(self.device)
                 q_values = self.model(state_tensor)
-            action = q_values.argmax(dim=-1).squeeze().cpu().numpy()
-            return action
-
+            return q_values.argmax(dim=-1).squeeze().cpu().numpy()
     def store_transition(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
 
@@ -65,10 +63,14 @@ class DQNAgent:
 
         next_q_values = self.target_model(next_states).max(2)[0].detach()
 
+        print (rewards.shape)
+        print (dones.shape)
+        print (next_q_values.shape)
         # Calculate the target Q-values for the Bellman update
         target_q_values = rewards + (1 - dones) * self.gamma * next_q_values
 
         loss = self.loss_fn(q_values, target_q_values)
+
 
 
         # Perform backpropagation

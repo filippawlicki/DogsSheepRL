@@ -1,5 +1,5 @@
 pygame
-gym
+gymnasium
 numpy
 pyswip==0.3.0
 torch
