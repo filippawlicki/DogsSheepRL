@@ -13,7 +13,8 @@ import time
 import config
 
 # Check if the output directory exists, if not, create it.
-os.makedirs(config.OUTPUT_DIR, exist_ok=True)
+os.makedirs(f"{config.OUTPUT_DIR}/models", exist_ok=True)
+os.makedirs(f"{config.OUTPUT_DIR}/charts", exist_ok=True)
 
 # Replay Buffer for storing transitions
 class ReplayBuffer:

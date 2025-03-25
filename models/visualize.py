@@ -1,3 +1,4 @@
+import os
 import sys
 import pygame
 import torch
@@ -6,6 +7,7 @@ from envs.dogs_sheep_env import DogsSheepEnv
 import config
 from train_alt import QNetwork as DQN
 
+os.makedirs(f"{config.OUTPUT_DIR}/results", exist_ok=True)
 
 def decode_action(action_int, num_dogs):
     """
