@@ -1,5 +1,7 @@
 import sys
+
 import pygame
+
 import config
 
 

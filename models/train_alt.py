@@ -1,20 +1,23 @@
+import os
+import random
+import time
+from collections import deque
+
 import gymnasium as gym
+import matplotlib.pyplot as plt
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import numpy as np
-import random
-from collections import deque
-from gymnasium.envs.registration import register
 from gymnasium import envs
-import matplotlib.pyplot as plt
-import os
-import time
+from gymnasium.envs.registration import register
+
 import config
 
 # Check if the output directory exists, if not, create it.
 os.makedirs(f"{config.OUTPUT_DIR}/models", exist_ok=True)
 os.makedirs(f"{config.OUTPUT_DIR}/charts", exist_ok=True)
+
 
 # Replay Buffer for storing transitions
 class ReplayBuffer:
@@ -31,6 +34,7 @@ class ReplayBuffer:
 
     def __len__(self):
         return len(self.buffer)
+
 
 # Q-Network (a simple MLP)
 class QNetwork(nn.Module):
@@ -61,19 +65,31 @@ def process_observation(obs):
         obs["target"].flatten()
     ]).astype(np.float32)
 
+def decode_action(action_int, num_dogs):
+    """
+    Given a composite action (an integer), decode it into a list of actions (one per dog).
+    With N dogs each having 4 directional moves, this function decomposes the integer
+    into its base‑4 digits.
+    """
+    actions = []
+    for _ in range(num_dogs):
+        actions.append(action_int % 4)
+        action_int //= 4
+    return actions[::-1]
 
 # Hyperparameters for training
-EPISODES = 1000000         # Total episodes for training
-MAX_STEPS = 50         # Maximum steps per episode
+EPISODES = 1000000  # Total episodes for training
+MAX_STEPS = 50  # Maximum steps per episode
 BATCH_SIZE = 128
-GAMMA = 0.99               # Discount factor
-LR = 1e-4                  # Learning rate
-TARGET_UPDATE = 25         # Frequency (in episodes) to update target network
+GAMMA = 0.99  # Discount factor
+LR = 1e-4  # Learning rate
+TARGET_UPDATE = 25  # Frequency (in episodes) to update target network
 REPLAY_BUFFER_CAPACITY = 50000
-EPS_START = 1.5            # Initial epsilon for epsilon-greedy strategy
-EPS_END = 0.01             # Minimum epsilon
-EPS_DECAY = 1200            # Controls the decay rate of epsilon
+EPS_START = 1.5  # Initial epsilon for epsilon-greedy strategy
+EPS_END = 0.01  # Minimum epsilon
+EPS_DECAY = 1200  # Controls the decay rate of epsilon
 CHECKPOINT_FREQ = 10000
+
 
 # Main training loop
 def save_plots(episode_rewards, episode_losses, episode):
@@ -99,7 +115,6 @@ def save_plots(episode_rewards, episode_losses, episode):
     plt.close()
 
 
-
 def train():
     env_id = 'DogsSheep-v0'
 
@@ -119,7 +134,7 @@ def train():
 
     # Define the composite action space size.
     # For each dog there are 4 moves; so total actions = 4^(num_dogs).
-    action_dim = 4 * config.NUM_DOGS
+    action_dim = 4 ** config.NUM_DOGS
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
@@ -137,7 +152,7 @@ def train():
 
     # Lists for logging rewards and losses
     episode_rewards = []
-    episode_losses = []   # Average loss per episode
+    episode_losses = []  # Average loss per episode
 
     for episode in range(EPISODES):
         obs, _ = env.reset()
@@ -148,19 +163,21 @@ def train():
         for t in range(MAX_STEPS):
             # Epsilon-greedy action selection
             if random.random() < epsilon:
-                actions = [random.randint(0, 3) for _ in range(config.NUM_DOGS)]
+                composite_action = random.randrange(action_dim)
             else:
                 with torch.no_grad():
                     state_tensor = torch.from_numpy(state).unsqueeze(0).to(device)
-                    q_values = policy_net(state_tensor).cpu().numpy().flatten()
-                    actions = [np.argmax(q_values[i*4:(i+1)*4]) for i in range(config.NUM_DOGS)]
+                    q_values = policy_net(state_tensor).cpu().numpy()
+                    composite_action = int(np.argmax(q_values))
 
-            next_obs, reward, done, truncated, _ = env.step(actions)
+            # Decode action and take step
+            dog_actions = decode_action(composite_action, config.NUM_DOGS)
+            next_obs, reward, done, truncated, _ = env.step(dog_actions)
             next_state = process_observation(next_obs)
             total_reward += reward
 
             # Store in replay buffer
-            replay_buffer.push(state, actions, reward, next_state, done)
+            replay_buffer.push(state, composite_action, reward, next_state, done)
             state = next_state
 
             # Train only if buffer is ready
@@ -190,8 +207,7 @@ def train():
             if done or truncated:
                 break
 
-
-    # Epsilon decay
+        # Epsilon decay
         epsilon = EPS_END + (EPS_START - EPS_END) * np.exp(-episode / EPS_DECAY)
 
         # Compute average loss for the episode (if any updates occurred)
@@ -212,8 +228,10 @@ def train():
 
     env.close()
     # Save the final model
-    torch.save(policy_net.state_dict(), f"{config.OUTPUT_DIR}/models/dqn_model_{config.GRID_SIZE}x{config.GRID_SIZE}+{config.NUM_DOGS}d+{config.NUM_SHEEP}o.pth")
+    torch.save(policy_net.state_dict(),
+               f"{config.OUTPUT_DIR}/models/dqn_model_{config.GRID_SIZE}x{config.GRID_SIZE}+{config.NUM_DOGS}d+{config.NUM_SHEEP}o.pth")
     print("Training complete.")
+
 
 if __name__ == "__main__":
     start = time.time()

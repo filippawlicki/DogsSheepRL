@@ -1,8 +1,9 @@
 import sys
+
 import pygame
-from envs.dogs_sheep_env import DogsSheepEnv
+
 import config
-from pyswip import Prolog
+from envs.dogs_sheep_env import DogsSheepEnv
 
 key_to_action = {
   pygame.K_w: 0,  # Move up

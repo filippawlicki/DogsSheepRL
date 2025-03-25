@@ -1,12 +1,9 @@
 import gymnasium as gym
 import numpy as np
-import random
-from math import trunc
+from pyswip import Prolog
+
 import config
 from envs.render import GameRenderer
-from pyswip import Prolog
-import math
-from pathlib import Path
 
 prolog_file = str(config.ROOT_DIR / "prolog" / "logic.pl").replace("\\", "/")
 prolog = Prolog()
@@ -40,7 +37,7 @@ class DogsSheepEnv(gym.Env):
         )
 
         # Original action_space here; adjust if necessary for composite actions.
-        self.action_space = gym.spaces.Discrete(4 * config.NUM_DOGS)
+        self.action_space = gym.spaces.Discrete(4 ** config.NUM_DOGS)
         self.renderer = GameRenderer(grid_size)
 
         # Send target information to Prolog

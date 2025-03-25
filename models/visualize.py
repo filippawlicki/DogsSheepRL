@@ -1,10 +1,12 @@
 import os
 import sys
+
+import numpy as np
 import pygame
 import torch
-import numpy as np
-from envs.dogs_sheep_env import DogsSheepEnv
+
 import config
+from envs.dogs_sheep_env import DogsSheepEnv
 from train_alt import QNetwork as DQN
 
 os.makedirs(f"{config.OUTPUT_DIR}/results", exist_ok=True)
