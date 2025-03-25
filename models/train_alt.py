@@ -61,17 +61,6 @@ def process_observation(obs):
         obs["target"].flatten()
     ]).astype(np.float32)
 
-def decode_action(action_int, num_dogs):
-    """
-    Given a composite action (an integer), decode it into a list of actions (one per dog).
-    With N dogs each having 4 directional moves, this function decomposes the integer
-    into its base‑4 digits.
-    """
-    actions = []
-    for _ in range(num_dogs):
-        actions.append(action_int % 4)
-        action_int //= 4
-    return actions[::-1]
 
 # Hyperparameters for training
 EPISODES = 1000000         # Total episodes for training
@@ -130,9 +119,9 @@ def train():
 
     # Define the composite action space size.
     # For each dog there are 4 moves; so total actions = 4^(num_dogs).
-    action_dim = 4 ** config.NUM_DOGS
+    action_dim = 4 * config.NUM_DOGS
 
-    device = torch.device("cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
     # Set up networks
@@ -149,7 +138,6 @@ def train():
     # Lists for logging rewards and losses
     episode_rewards = []
     episode_losses = []   # Average loss per episode
-    all_losses = []       # All mini-batch losses across episodes
 
     for episode in range(EPISODES):
         obs, _ = env.reset()
@@ -160,21 +148,19 @@ def train():
         for t in range(MAX_STEPS):
             # Epsilon-greedy action selection
             if random.random() < epsilon:
-                composite_action = random.randrange(action_dim)
+                actions = [random.randint(0, 3) for _ in range(config.NUM_DOGS)]
             else:
                 with torch.no_grad():
                     state_tensor = torch.from_numpy(state).unsqueeze(0).to(device)
-                    q_values = policy_net(state_tensor).cpu().numpy()
-                    composite_action = int(np.argmax(q_values))
+                    q_values = policy_net(state_tensor).cpu().numpy().flatten()
+                    actions = [np.argmax(q_values[i*4:(i+1)*4]) for i in range(config.NUM_DOGS)]
 
-            # Decode action and take step
-            dog_actions = decode_action(composite_action, config.NUM_DOGS)
-            next_obs, reward, done, truncated, _ = env.step(dog_actions)
+            next_obs, reward, done, truncated, _ = env.step(actions)
             next_state = process_observation(next_obs)
             total_reward += reward
 
             # Store in replay buffer
-            replay_buffer.push(state, composite_action, reward, next_state, done)
+            replay_buffer.push(state, actions, reward, next_state, done)
             state = next_state
 
             # Train only if buffer is ready

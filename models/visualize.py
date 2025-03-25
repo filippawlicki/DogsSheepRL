@@ -41,8 +41,8 @@ action_dim = 4 ** config.NUM_DOGS  # Złożona przestrzeń akcji dla N psów
 
 # Load the trained model
 model = DQN(state_dim, action_dim)
-model_name = "dqn_model_5x5+2d+2o.pth"
-model.load_state_dict(torch.load(f"{config.OUTPUT_DIR}/models/{model_name}", map_location="cpu"))
+model_name = "dqn_model_episode_240000.pth"
+model.load_state_dict(torch.load(f"{config.OUTPUT_DIR}/{model_name}", map_location="cpu"))
 model.eval()
 
 
