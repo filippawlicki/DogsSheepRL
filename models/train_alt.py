@@ -73,17 +73,17 @@ def decode_action(action_int, num_dogs):
     return actions[::-1]
 
 # Hyperparameters for training
-EPISODES = 350000         # Total episodes for training
+EPISODES = 1000000         # Total episodes for training
 MAX_STEPS = 50         # Maximum steps per episode
 BATCH_SIZE = 128
 GAMMA = 0.99               # Discount factor
 LR = 1e-4                  # Learning rate
 TARGET_UPDATE = 25         # Frequency (in episodes) to update target network
 REPLAY_BUFFER_CAPACITY = 50000
-EPS_START = 1.2            # Initial epsilon for epsilon-greedy strategy
-EPS_END = 0.001             # Minimum epsilon
-EPS_DECAY = 1500            # Controls the decay rate of epsilon
-CHECKPOINT_FREQ = 50000       # Save model each checkpoint
+EPS_START = 1.5            # Initial epsilon for epsilon-greedy strategy
+EPS_END = 0.01             # Minimum epsilon
+EPS_DECAY = 1200            # Controls the decay rate of epsilon
+CHECKPOINT_FREQ = 10000
 
 # Main training loop
 def save_plots(episode_rewards, episode_losses, episode):

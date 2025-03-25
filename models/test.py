@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-import gym
+import gymnasium as gym
 from dqn_agent import DQNAgent
 import config
 from envs.dogs_sheep_env import DogsSheepEnv

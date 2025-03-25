@@ -2,7 +2,7 @@ from pathlib import Path
 
 ROOT_DIR = Path(__file__).parent
 OUTPUT_DIR = "output"
-GRID_SIZE = 5
+GRID_SIZE = 15
 PYGAME_SCALE = 80
 NUM_DOGS = 2
 NUM_SHEEP = 2

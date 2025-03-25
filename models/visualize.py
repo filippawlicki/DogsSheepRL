@@ -63,10 +63,13 @@ def select_action(model, state):
 
 
 print("Model is playing. Press Q or close the window to stop the visualization.")
+winrate = 0
+won = 0
+total = 0
 while True:
     env.reset()
     done = False
-    while not done:
+    for _ in range(100):
         env.render()
 
         actions = select_action(model, state)
@@ -84,5 +87,12 @@ while True:
                 if event.key == pygame.K_q:
                     pygame.quit()
                     sys.exit()
+        if done:
+            won += 1
+            break
+    total += 1
+    winrate = won / total * 100
+    print(f"Winrate: {winrate:.2f}%")
+    print(f"Games won: {won}/{total}")
 
 env.close()

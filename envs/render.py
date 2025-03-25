@@ -89,7 +89,7 @@ class GameRenderer:
         self.draw_target(target)
 
         pygame.display.flip()  # Update the display
-        self.clock.tick(10)  # Limit the frame rate to 10 FPS
+        #self.clock.tick(10)  # Limit the frame rate to 10 FPS
 
         # Process event queue to handle exit events (e.g., window close)
         for event in pygame.event.get():
