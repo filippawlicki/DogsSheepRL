@@ -3,3 +3,5 @@ numpy~=2.2.4
 pyswip==0.3.0
 matplotlib~=3.10.1
 gymnasium~=1.1.1
+torch~=2.6.0+cu126
+pandas~=2.2.3

@@ -105,7 +105,7 @@ def save_plots(episode_rewards, episode_losses, episode):
     plt.legend()
 
     plt.tight_layout()
-    plt.savefig(f"{config.OUTPUT_DIR}/training_progress_episode_{episode}.png")
+    plt.savefig(f"{config.OUTPUT_DIR}/charts/training_progress_episode_{episode}.png")
     plt.close()
 
 
@@ -218,14 +218,14 @@ def train():
 
         # Save checkpoints
         if (episode + 1) % CHECKPOINT_FREQ == 0:
-            torch.save(policy_net.state_dict(), f"{config.OUTPUT_DIR}/dqn_model_episode_{episode+1}.pth")
+            torch.save(policy_net.state_dict(), f"{config.OUTPUT_DIR}/models/dqn_model_episode_{episode+1}.pth")
             save_plots(episode_rewards, episode_losses, episode+1)
             print(f"Episode {episode + 1:03d}/{EPISODES}, Total Reward: {total_reward:.2f}, "
             f"Average Loss: {avg_loss:.4f}, Epsilon: {epsilon:.3f}")
 
     env.close()
     # Save the final model
-    torch.save(policy_net.state_dict(), f"{config.OUTPUT_DIR}/dqn_model_final.pth")
+    torch.save(policy_net.state_dict(), f"{config.OUTPUT_DIR}/models/dqn_model_{config.GRID_SIZE}x{config.GRID_SIZE}+{config.NUM_DOGS}d+{config.NUM_SHEEP}o.pth")
     print("Training complete.")
 
 if __name__ == "__main__":
