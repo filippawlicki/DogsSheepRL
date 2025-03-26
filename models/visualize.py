@@ -4,7 +4,7 @@ import torch
 import numpy as np
 from envs.dogs_sheep_env import DogsSheepEnv
 import config
-from train_alt import QNetwork as DQN
+from train import QNetwork as DQN
 
 
 def decode_action(action_int, num_dogs):
@@ -42,7 +42,7 @@ obs, _ = env.reset()
 state = process_observation(obs)
 
 state_dim = config.NUM_DOGS * 2 + config.NUM_SHEEP * 2 + 2
-action_dim = 4 ** config.NUM_DOGS  # Złożona przestrzeń akcji dla N psów
+action_dim = 4 ** config.NUM_DOGS  # Composite action space for N dogs
 
 # Load the trained model
 model = DQN(state_dim, action_dim)
