@@ -44,7 +44,7 @@ action_dim = 4 ** config.NUM_DOGS  # Composite action space for N dogs
 
 # Load the trained model
 model = DQN(state_dim, action_dim)
-model.load_state_dict(torch.load(f"{config.OUTPUT_DIR}/dqn_model_5x5+2d+2o.pth", map_location="cpu"))
+model.load_state_dict(torch.load(f"{config.OUTPUT_DIR}/5x5_2d_3s/dqn_model_final.pth", map_location="cpu"))
 model.eval()
 
 
