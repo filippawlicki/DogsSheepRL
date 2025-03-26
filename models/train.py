@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import os
 import time
 import config
+import pandas as pd
 
 # Check if the output directory exists, if not, create it.
 os.makedirs(config.OUTPUT_DIR, exist_ok=True)
@@ -73,7 +74,7 @@ def decode_action(action_int, num_dogs):
     return actions[::-1]
 
 # Hyperparameters for training
-EPISODES = 350000         # Total episodes for training
+EPISODES = 10000         # Total episodes for training
 MAX_STEPS = 50         # Maximum steps per episode
 BATCH_SIZE = 128
 GAMMA = 0.99               # Discount factor
@@ -83,25 +84,29 @@ REPLAY_BUFFER_CAPACITY = 50000
 EPS_START = 1.2            # Initial epsilon for epsilon-greedy strategy
 EPS_END = 0.001             # Minimum epsilon
 EPS_DECAY = 1500            # Controls the decay rate of epsilon
-CHECKPOINT_FREQ = 50000       # Save model each checkpoint
+CHECKPOINT_FREQ = 500       # Save model each checkpoint
 
 # Main training loop
-def save_plots(episode_rewards, episode_losses, episode):
-    """ Save reward and loss plots as images. """
+def save_plots(episode_rewards, episode_losses, episode, window=100):
+    """ Save reward and loss plots as images with rolling average. """
     plt.figure(figsize=(24, 8))
 
+    # Calculate rolling averages
+    rewards_smoothed = pd.Series(episode_rewards).rolling(window, min_periods=1).mean()
+    losses_smoothed = pd.Series(episode_losses).rolling(window, min_periods=1).mean()
+
     plt.subplot(1, 2, 1)
-    plt.plot(episode_rewards, label='Episode Reward')
+    plt.plot(rewards_smoothed, label='Episode Reward (Smoothed)')
     plt.xlabel('Episode')
     plt.ylabel('Total Reward')
-    plt.title('Total Reward per Episode')
+    plt.title('Total Reward per Episode (Smoothed)')
     plt.legend()
 
     plt.subplot(1, 2, 2)
-    plt.plot(episode_losses, label='Average Loss per Episode', color='red')
+    plt.plot(losses_smoothed, label='Average Loss per Episode (Smoothed)', color='red')
     plt.xlabel('Episode')
     plt.ylabel('Average Loss')
-    plt.title('Average Loss per Episode')
+    plt.title('Average Loss per Episode (Smoothed)')
     plt.legend()
 
     plt.tight_layout()
