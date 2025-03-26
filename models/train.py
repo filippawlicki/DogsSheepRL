@@ -1,23 +1,20 @@
-import os
-import random
-import time
-from collections import deque
-
 import gymnasium as gym
-import matplotlib.pyplot as plt
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from gymnasium import envs
+import numpy as np
+import random
+from collections import deque
 from gymnasium.envs.registration import register
-
+from gymnasium import envs
+import matplotlib.pyplot as plt
+import os
+import time
 import config
+import pandas as pd
 
 # Check if the output directory exists, if not, create it.
-os.makedirs(f"{config.OUTPUT_DIR}/models", exist_ok=True)
-os.makedirs(f"{config.OUTPUT_DIR}/charts", exist_ok=True)
-
+os.makedirs(config.OUTPUT_DIR, exist_ok=True)
 
 # Replay Buffer for storing transitions
 class ReplayBuffer:
@@ -34,7 +31,6 @@ class ReplayBuffer:
 
     def __len__(self):
         return len(self.buffer)
-
 
 # Q-Network (a simple MLP)
 class QNetwork(nn.Module):
@@ -81,9 +77,9 @@ def decode_action(action_int, num_dogs):
 EPISODES = 1000000  # Total episodes for training
 MAX_STEPS = 50  # Maximum steps per episode
 BATCH_SIZE = 128
-GAMMA = 0.99  # Discount factor
-LR = 1e-4  # Learning rate
-TARGET_UPDATE = 25  # Frequency (in episodes) to update target network
+GAMMA = 0.99               # Discount factor
+LR = 1e-4                  # Learning rate
+TARGET_UPDATE = 25         # Frequency (in episodes) to update target network
 REPLAY_BUFFER_CAPACITY = 50000
 EPS_START = 1.5  # Initial epsilon for epsilon-greedy strategy
 EPS_END = 0.01  # Minimum epsilon
@@ -92,27 +88,32 @@ CHECKPOINT_FREQ = 10000
 
 
 # Main training loop
-def save_plots(episode_rewards, episode_losses, episode):
-    """ Save reward and loss plots as images. """
+def save_plots(episode_rewards, episode_losses, episode, window=1000):
+    """ Save reward and loss plots as images with rolling average. """
     plt.figure(figsize=(24, 8))
 
+    # Calculate rolling averages
+    rewards_smoothed = pd.Series(episode_rewards).rolling(window, min_periods=1).mean()
+    losses_smoothed = pd.Series(episode_losses).rolling(window, min_periods=1).mean()
+
     plt.subplot(1, 2, 1)
-    plt.plot(episode_rewards, label='Episode Reward')
+    plt.plot(rewards_smoothed, label='Episode Reward (Smoothed)')
     plt.xlabel('Episode')
     plt.ylabel('Total Reward')
-    plt.title('Total Reward per Episode')
+    plt.title('Total Reward per Episode (Smoothed)')
     plt.legend()
 
     plt.subplot(1, 2, 2)
-    plt.plot(episode_losses, label='Average Loss per Episode', color='red')
+    plt.plot(losses_smoothed, label='Average Loss per Episode (Smoothed)', color='red')
     plt.xlabel('Episode')
     plt.ylabel('Average Loss')
-    plt.title('Average Loss per Episode')
+    plt.title('Average Loss per Episode (Smoothed)')
     plt.legend()
 
     plt.tight_layout()
-    plt.savefig(f"{config.OUTPUT_DIR}/charts/training_progress_episode_{episode}.png")
+    plt.savefig(f"{config.OUTPUT_DIR}/training_progress_episode_{episode}.png")
     plt.close()
+
 
 
 def train():
@@ -142,6 +143,8 @@ def train():
     # Set up networks
     policy_net = QNetwork(state_dim, action_dim).to(device)
     target_net = QNetwork(state_dim, action_dim).to(device)
+    # Load weights from different model
+    #policy_net.load_state_dict(torch.load(f"{config.OUTPUT_DIR}/5x5_2d_3s/dqn_model_final.pth", map_location=device))
     target_net.load_state_dict(policy_net.state_dict())
     target_net.eval()  # Set target network to evaluation mode
 
@@ -153,6 +156,8 @@ def train():
     # Lists for logging rewards and losses
     episode_rewards = []
     episode_losses = []  # Average loss per episode
+
+    checkpoint_time_start = time.time()
 
     for episode in range(EPISODES):
         obs, _ = env.reset()
@@ -207,7 +212,8 @@ def train():
             if done or truncated:
                 break
 
-        # Epsilon decay
+
+    # Epsilon decay
         epsilon = EPS_END + (EPS_START - EPS_END) * np.exp(-episode / EPS_DECAY)
 
         # Compute average loss for the episode (if any updates occurred)
@@ -221,17 +227,16 @@ def train():
 
         # Save checkpoints
         if (episode + 1) % CHECKPOINT_FREQ == 0:
-            torch.save(policy_net.state_dict(), f"{config.OUTPUT_DIR}/models/dqn_model_episode_{episode+1}.pth")
+            torch.save(policy_net.state_dict(), f"{config.OUTPUT_DIR}/dqn_model_episode_{episode+1}.pth")
             save_plots(episode_rewards, episode_losses, episode+1)
             print(f"Episode {episode + 1:03d}/{EPISODES}, Total Reward: {total_reward:.2f}, "
-            f"Average Loss: {avg_loss:.4f}, Epsilon: {epsilon:.3f}")
+            f"Average Loss: {avg_loss:.4f}, Epsilon: {epsilon:.3f}, Time taken: {time.time() - checkpoint_time_start:.2f} seconds.")
+            checkpoint_time_start = time.time()
 
     env.close()
     # Save the final model
-    torch.save(policy_net.state_dict(),
-               f"{config.OUTPUT_DIR}/models/dqn_model_{config.GRID_SIZE}x{config.GRID_SIZE}+{config.NUM_DOGS}d+{config.NUM_SHEEP}o.pth")
+    torch.save(policy_net.state_dict(), f"{config.OUTPUT_DIR}/dqn_model_final.pth")
     print("Training complete.")
-
 
 if __name__ == "__main__":
     start = time.time()

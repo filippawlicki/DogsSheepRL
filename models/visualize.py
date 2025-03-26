@@ -1,15 +1,11 @@
-import os
 import sys
-
-import numpy as np
 import pygame
 import torch
-
-import config
+import numpy as np
 from envs.dogs_sheep_env import DogsSheepEnv
-from train_alt import QNetwork as DQN
+import config
+from train import QNetwork as DQN
 
-os.makedirs(f"{config.OUTPUT_DIR}/results", exist_ok=True)
 
 def decode_action(action_int, num_dogs):
     """
@@ -38,13 +34,19 @@ def process_observation(obs):
         obs["target"].flatten()
     ]).astype(np.float32)
 
+
+env = DogsSheepEnv(grid_size=config.GRID_SIZE, num_dogs=config.NUM_DOGS, num_sheep=config.NUM_SHEEP)
+
+# Get an initial observation (list of all positions)
+obs, _ = env.reset()
+state = process_observation(obs)
+
 state_dim = config.NUM_DOGS * 2 + config.NUM_SHEEP * 2 + 2
-action_dim = 4 ** config.NUM_DOGS  # Złożona przestrzeń akcji dla N psów
+action_dim = 4 ** config.NUM_DOGS  # Composite action space for N dogs
 
 # Load the trained model
 model = DQN(state_dim, action_dim)
-model_name = "dqn_model_episode_240000.pth"
-model.load_state_dict(torch.load(f"{config.OUTPUT_DIR}/{model_name}", map_location="cpu"))
+model.load_state_dict(torch.load(f"{config.OUTPUT_DIR}/dqn_model_5x5+2d+2o.pth", map_location="cpu"))
 model.eval()
 
 
@@ -59,49 +61,28 @@ def select_action(model, state):
         composite_action = int(q_values.argmax(dim=-1).item())
         return decode_action(composite_action, config.NUM_DOGS)
 
-winrates = []
-for i in range(3, 21):
-    print (f"Grid size: {i}")
-    env = DogsSheepEnv(grid_size=i, num_dogs=config.NUM_DOGS, num_sheep=config.NUM_SHEEP)
-    # Get an initial observation (list of all positions)
-    obs, _ = env.reset()
-    state = process_observation(obs)
-    winrate = 0
-    won = 0
-    total = 1000
-    for _ in range(total):
-        env.reset()
-        done = False
-        for _ in range(200):
-            #env.render()
 
-            actions = select_action(model, state)
+print("Model is playing. Press Q or close the window to stop the visualization.")
+while True:
+    env.reset()
+    done = False
+    while not done:
+        env.render()
 
-            # Make a step in the environment
-            obs, reward, done, truncated, _ = env.step(actions)
-            state = process_observation(obs)
+        actions = select_action(model, state)
 
-            # Pygame event handling
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
+        # Make a step in the environment
+        obs, reward, done, truncated, _ = env.step(actions)
+        state = process_observation(obs)
+
+        # Pygame event handling
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_q:
                     pygame.quit()
                     sys.exit()
-                elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_q:
-                        pygame.quit()
-                        sys.exit()
-            if done:
-                won += 1
-                break
-        #print(f"Winrate: {winrate:.2f}%")
-        #print(f"Games won: {won}/{total}")
-    winrate = won / total * 100
-    print(f"Winrate: {winrate:.2f}%")
-    winrates.append({'Grid size': f'{i}x{i}','Winrate': round(winrate, 2)})
-    env.close()
 
-print(winrates)
-#save winrates to csv using pandas
-import pandas as pd
-df = pd.DataFrame(winrates)
-df.to_csv(f'{config.OUTPUT_DIR}/results/winrates_{model_name}.csv', index=False)
+env.close()
