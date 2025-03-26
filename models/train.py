@@ -74,17 +74,18 @@ def decode_action(action_int, num_dogs):
     return actions[::-1]
 
 # Hyperparameters for training
-EPISODES = 100000         # Total episodes for training
-MAX_STEPS = 50         # Maximum steps per episode
+EPISODES = 1000000  # Total episodes for training
+MAX_STEPS = 50  # Maximum steps per episode
 BATCH_SIZE = 128
 GAMMA = 0.99               # Discount factor
 LR = 1e-4                  # Learning rate
-TARGET_UPDATE = 50         # Frequency (in episodes) to update target network
+TARGET_UPDATE = 25         # Frequency (in episodes) to update target network
 REPLAY_BUFFER_CAPACITY = 50000
-EPS_START = 1.2            # Initial epsilon for epsilon-greedy strategy
-EPS_END = 0.001             # Minimum epsilon
-EPS_DECAY = 1500            # Controls the decay rate of epsilon
-CHECKPOINT_FREQ = 10000       # Save model each checkpoint
+EPS_START = 1.5  # Initial epsilon for epsilon-greedy strategy
+EPS_END = 0.01  # Minimum epsilon
+EPS_DECAY = 1200  # Controls the decay rate of epsilon
+CHECKPOINT_FREQ = 10000
+
 
 # Main training loop
 def save_plots(episode_rewards, episode_losses, episode, window=1000):
@@ -136,14 +137,14 @@ def train():
     # For each dog there are 4 moves; so total actions = 4^(num_dogs).
     action_dim = 4 ** config.NUM_DOGS
 
-    device = torch.device("cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
     # Set up networks
     policy_net = QNetwork(state_dim, action_dim).to(device)
     target_net = QNetwork(state_dim, action_dim).to(device)
     # Load weights from different model
-    policy_net.load_state_dict(torch.load(f"{config.OUTPUT_DIR}/5x5_2d_3s/dqn_model_final.pth", map_location=device))
+    #policy_net.load_state_dict(torch.load(f"{config.OUTPUT_DIR}/5x5_2d_3s/dqn_model_final.pth", map_location=device))
     target_net.load_state_dict(policy_net.state_dict())
     target_net.eval()  # Set target network to evaluation mode
 
@@ -154,8 +155,7 @@ def train():
 
     # Lists for logging rewards and losses
     episode_rewards = []
-    episode_losses = []   # Average loss per episode
-    all_losses = []       # All mini-batch losses across episodes
+    episode_losses = []  # Average loss per episode
 
     checkpoint_time_start = time.time()
 

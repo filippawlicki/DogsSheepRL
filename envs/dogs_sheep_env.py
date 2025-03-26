@@ -1,16 +1,18 @@
 import gymnasium as gym
 import numpy as np
-import random
-from math import trunc
+from pyswip import Prolog
+
 import config
 from envs.render import GameRenderer
-from pyswip import Prolog
-import math
-from pathlib import Path
 
 prolog_file = str(config.ROOT_DIR / "prolog" / "logic.pl").replace("\\", "/")
 prolog = Prolog()
 prolog.consult(prolog_file)
+
+
+def _distance(pos1, pos2):
+    # Uses Euclidean distance between two points.
+    return np.linalg.norm(pos1 - pos2)
 
 
 class DogsSheepEnv(gym.Env):
@@ -70,7 +72,7 @@ class DogsSheepEnv(gym.Env):
         prev_sheep_positions = self.sheep.copy()
 
         # Compute the total distance BEFORE movement
-        old_total_distance = sum(self._distance(s, self.target) for s in self.sheep)
+        old_total_distance = sum(_distance(s, self.target) for s in self.sheep)
         #print("Dog actions: ", dog_actions)
         self._move_dogs(dog_actions)
         self._move_sheep()
@@ -94,7 +96,7 @@ class DogsSheepEnv(gym.Env):
         moving_sheep = [s for s in self.sheep if not np.array_equal(s, self.target)]
 
         # Compute total distance only for moving sheep
-        new_total_distance = sum(self._distance(s, self.target) for s in moving_sheep)
+        new_total_distance = sum(_distance(s, self.target) for s in moving_sheep)
 
         # Reward for reducing distance (only for moving sheep)
         distance_delta = old_total_distance - new_total_distance  # Positive if sheep moved closer
@@ -143,7 +145,7 @@ class DogsSheepEnv(gym.Env):
                 continue
 
             # Calculate crowdedness using distance (can be modified as needed)
-            crowded_sheep = sum(1 for s in self.sheep if self._distance(s, self.sheep[i]) < config.MIN_DISTANCE_SHEEP)
+            crowded_sheep = sum(1 for s in self.sheep if _distance(s, self.sheep[i]) < config.MIN_DISTANCE_SHEEP)
 
             dogs_prolog = "[" + ", ".join(f"({dog[0]}, {dog[1]})" for dog in self.dogs) + "]"
             sheep_prolog = "[" + ", ".join(f"({sheep[0]}, {sheep[1]})" for sheep in self.sheep) + "]"
@@ -163,10 +165,6 @@ class DogsSheepEnv(gym.Env):
 
             self.sheep[i][0] = np.clip(self.sheep[i][0] + move_x, 0, self.grid_size - 1)
             self.sheep[i][1] = np.clip(self.sheep[i][1] + move_y, 0, self.grid_size - 1)
-
-    def _distance(self, pos1, pos2):
-        # Uses Euclidean distance between two points.
-        return np.linalg.norm(pos1 - pos2)
 
     def _get_observation(self):
         return {"dogs": self.dogs, "sheep": self.sheep, "target": self.target}
