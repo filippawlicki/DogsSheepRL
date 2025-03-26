@@ -7,6 +7,8 @@ import config
 from train import QNetwork as DQN
 import matplotlib.pyplot as plt
 import pandas as pd
+from matplotlib.ticker import FuncFormatter
+
 
 
 def decode_action(action_int, num_dogs):
@@ -123,16 +125,30 @@ env.close()
 
 # Plot the win rate for each grid size
 plt.figure(figsize=(12, 6))
-plt.plot(MAP_SIZES, [grids_statistics[grid_size]["won_games"] / GAMES_PER_SIZE for grid_size in MAP_SIZES], marker='o')
+win_rates = [(grids_statistics[grid_size]["won_games"] / GAMES_PER_SIZE) * 100 for grid_size in MAP_SIZES]
+print(win_rates)
+bars = plt.bar(MAP_SIZES, win_rates, edgecolor='black')
+
+# Add percentage sign to y-axis
+plt.gca().yaxis.set_major_formatter(FuncFormatter(lambda y, _: f'{y:.0f}%'))
+
+# Add labels on each bar
+for bar, win_rate in zip(bars, win_rates):
+    plt.text(bar.get_x() + bar.get_width() / 2, bar.get_height(), f'{win_rate:.1f}%', ha='center', va='bottom')
+
+# Ensure every x-tick has a label
+plt.xticks(MAP_SIZES)
+
 plt.xlabel('Grid Size')
 plt.ylabel('Win Rate')
-plt.title('Win Rate for Different Grid Sizes')
-plt.grid()
+plt.title('Win Rates for Different Grid Sizes for Model trained on 5x5 Grid')
+plt.grid(axis='y')
 plt.savefig(f"{config.OUTPUT_DIR}/win_rate_per_grid_size.png")
 plt.show()
 
 # Plot the average reward per step for each grid size and average steps per game on one plot
 plt.figure(figsize=(12, 6))
+
 plt.subplot(1, 2, 1)
 plt.plot(MAP_SIZES, [grids_statistics[grid_size]["average_reward_per_step"] for grid_size in MAP_SIZES], marker='o')
 plt.xlabel('Grid Size')
@@ -146,6 +162,8 @@ plt.xlabel('Grid Size')
 plt.ylabel('Average Steps per Game')
 plt.title('Average Steps per Game for Different Grid Sizes')
 plt.grid()
+
+plt.suptitle('Grid Size Analysis: Model trained on 5x5 Grid')
 plt.savefig(f"{config.OUTPUT_DIR}/average_steps_and_reward_per_grid_size.png")
 plt.show()
 
