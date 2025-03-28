@@ -137,14 +137,14 @@ def train():
     # For each dog there are 4 moves; so total actions = 4^(num_dogs).
     action_dim = 4 ** config.NUM_DOGS
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cpu")
     print(f"Using device: {device}")
 
     # Set up networks
     policy_net = QNetwork(state_dim, action_dim).to(device)
     target_net = QNetwork(state_dim, action_dim).to(device)
     # Load weights from different model
-    #policy_net.load_state_dict(torch.load(f"{config.OUTPUT_DIR}/5x5_2d_3s/dqn_model_final.pth", map_location=device))
+    #policy_net.load_state_dict(torch.load(f"{config.OUTPUT_DIR}/5x5_3d_3s/dqn_model_episode_200000.pth", map_location=device))
     target_net.load_state_dict(policy_net.state_dict())
     target_net.eval()  # Set target network to evaluation mode
 
@@ -232,7 +232,8 @@ def train():
             print(f"Episode {episode + 1:03d}/{EPISODES}, Total Reward: {total_reward:.2f}, "
             f"Average Loss: {avg_loss:.4f}, Epsilon: {epsilon:.3f}, Time taken: {time.time() - checkpoint_time_start:.2f} seconds.")
             checkpoint_time_start = time.time()
-
+        if (episode + 1) % 1000 == 0:
+            print(f"Episode {episode + 1:03d}/{EPISODES}")
     env.close()
     # Save the final model
     torch.save(policy_net.state_dict(), f"{config.OUTPUT_DIR}/dqn_model_final.pth")
