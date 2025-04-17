@@ -5,7 +5,7 @@ import torch.optim as optim
 import numpy as np
 import random
 from collections import deque
-from dqn_agent import DQNAgent
+# from dqn_agent import DQNAgent
 import config
 import gymnasium as gym
 from gymnasium import envs

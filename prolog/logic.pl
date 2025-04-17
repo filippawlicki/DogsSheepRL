@@ -91,7 +91,6 @@ move_towards_target(SheepX, SheepY, TargetX, TargetY, MoveX, MoveY) :-
     ).
 
 direction_to_move(SheepX, SheepY, Dogs, CrowdedSheep, VisionRange, OtherSheep, MoveX, MoveY) :-
-    vision_range is VisionRange,
     target_position(TargetX, TargetY),
     (on_target(SheepX, SheepY) ->
         % Sheep is in the target area, do not move

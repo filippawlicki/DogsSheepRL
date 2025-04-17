@@ -29,9 +29,9 @@ def process_observation(obs):
       - Target position (2).
     """
     return np.concatenate([
-        obs["dogs"].flatten(),
-        obs["sheep"].flatten(),
-        obs["target"].flatten()
+        np.array(obs["dogs"]).flatten(),
+        np.array(obs["sheep"]).flatten(),
+        np.array(obs["target"]).flatten()
     ]).astype(np.float32)
 
 
@@ -46,7 +46,10 @@ action_dim = 4 ** config.NUM_DOGS  # Composite action space for N dogs
 
 # Load the trained model
 model = DQN(state_dim, action_dim)
-model.load_state_dict(torch.load(f"{config.OUTPUT_DIR}/dqn_model_5x5+2d+2o.pth", map_location="cpu"))
+
+model.load_state_dict(torch.load(f"{config.OUTPUT_DIR}/8x8_2d_2s/dqn_model_8x8+2d+2o.pth", map_location="cpu"))
+pushing_sheep = False
+
 model.eval()
 
 
@@ -72,12 +75,13 @@ for _ in range(1000):
     # game_counter += 1
     # print(f"Games played: {game_counter}")
     for _ in range(100):
-        env.render()
+        # env.render()
+        # pygame.time.wait(100)
 
         actions = select_action(model, state)
 
         # Make a step in the environment
-        obs, reward, done, truncated, _ = env.step(actions)
+        obs, reward, done, truncated, _ = env.step(actions, pushing_sheep=pushing_sheep)
         state = process_observation(obs)
 
         # Pygame event handling

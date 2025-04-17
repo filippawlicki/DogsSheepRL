@@ -5,7 +5,7 @@ import torch.optim as optim
 import random
 from collections import namedtuple, deque
 import config
-from models.dqn_model import DQN
+# from models.dqn_model import DQN
 
 class DQNAgent:
     def __init__(self, state_dim, action_dim, lr=0.001, gamma=0.95, device="cpu", epsilon_greedy=False, epsilon=1.0, epsilon_min=0.01, epsilon_decay=0.995):
@@ -19,8 +19,8 @@ class DQNAgent:
             self.epsilon_min = epsilon_min
             self.epsilon_decay = epsilon_decay
 
-        self.model = DQN(state_dim, config.GRID_SIZE, action_dim).to(self.device)
-        self.target_model =  DQN(state_dim, config.GRID_SIZE, action_dim).to(self.device)
+        # self.model = DQN(state_dim, config.GRID_SIZE, action_dim).to(self.device)
+        # self.target_model =  DQN(state_dim, config.GRID_SIZE, action_dim).to(self.device)
         self.target_model.load_state_dict(self.model.state_dict())
         self.target_model.eval()
 
