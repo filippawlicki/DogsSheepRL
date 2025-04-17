@@ -8,6 +8,8 @@ on_target(X, Y) :-
 % Target position will be asserted from Python
 :- dynamic target_position/2.
 
+:- dynamic grid_size/1.
+
 vector_to_sheep(SheepX, SheepY, (DogX, DogY), (VX, VY), D) :-
     VX is SheepX - DogX,
     VY is SheepY - DogY,
@@ -89,6 +91,7 @@ move_towards_target(SheepX, SheepY, TargetX, TargetY, MoveX, MoveY) :-
     ).
 
 direction_to_move(SheepX, SheepY, Dogs, CrowdedSheep, VisionRange, OtherSheep, MoveX, MoveY) :-
+    vision_range is VisionRange,
     target_position(TargetX, TargetY),
     (on_target(SheepX, SheepY) ->
         % Sheep is in the target area, do not move
@@ -120,3 +123,28 @@ direction_to_move(SheepX, SheepY, Dogs, CrowdedSheep, VisionRange, OtherSheep, M
             MoveY is 0
         )
     ).
+
+% Define the move_sheep_if_occupied predicate
+push_sheep(_, _, _, _, [], []).
+push_sheep(DogX, DogY, MoveX, MoveY, [(SheepX, SheepY) | Rest], [(NewSheepX, NewSheepY) | NewRest]) :-
+    grid_size(GridSize),
+    (DogX =:= SheepX, DogY =:= SheepY ->
+        TempSheepX is SheepX + MoveX,
+        TempSheepY is SheepY + MoveY,
+        (TempSheepX < 0 ->
+            NewSheepX is 1
+        ;   TempSheepX >= GridSize ->
+                NewSheepX is GridSize - 2
+            ;   NewSheepX is TempSheepX
+        ),
+        (TempSheepY < 0 ->
+            NewSheepY is 1
+        ;   TempSheepY >= GridSize ->
+                NewSheepY is GridSize - 2
+            ;   NewSheepY is TempSheepY
+        )
+    ;
+        NewSheepX = SheepX,
+        NewSheepY = SheepY
+    ),
+    push_sheep(DogX, DogY, MoveX, MoveY, Rest, NewRest).

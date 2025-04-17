@@ -1,27 +1,21 @@
-from pathlib import Path
+import gymnasium as gym
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
 import random
 from collections import deque
-from dqn_agent import DQNAgent
-import config
-import gymnasium as gym
-from gymnasium import envs
 from gymnasium.envs.registration import register
+from gymnasium import envs
 import matplotlib.pyplot as plt
-from scipy.stats import zscore
-import logging
 import os
-import time
+
+# Import your configuration and environment.
 import config
-import pandas as pd
 
-# Check if the output directory exists, if not, create it.
-os.makedirs(config.OUTPUT_DIR, exist_ok=True)
-
+# -------------------------------------------------------------------
 # Replay Buffer for storing transitions
+# -------------------------------------------------------------------
 class ReplayBuffer:
     def __init__(self, capacity):
         self.buffer = deque(maxlen=capacity)
@@ -37,12 +31,14 @@ class ReplayBuffer:
     def __len__(self):
         return len(self.buffer)
 
+# -------------------------------------------------------------------
 # Q-Network (a simple MLP)
+# -------------------------------------------------------------------
 class QNetwork(nn.Module):
     def __init__(self, input_dim, output_dim):
         super(QNetwork, self).__init__()
-        self.fc1 = nn.Linear(input_dim, 256)
-        self.fc2 = nn.Linear(256, 256)
+        self.fc1 = nn.Linear(input_dim, 256)  # Increased from 128
+        self.fc2 = nn.Linear(256, 256)  # Increased from 128
         self.fc3 = nn.Linear(256, output_dim)
 
     def forward(self, x):
@@ -51,7 +47,9 @@ class QNetwork(nn.Module):
         return self.fc3(x)
 
 
+# -------------------------------------------------------------------
 # Helpers to process observations and decode composite actions
+# -------------------------------------------------------------------
 def process_observation(obs):
     """
     Convert the observation dictionary to a single flat float32 numpy array.
@@ -61,9 +59,9 @@ def process_observation(obs):
       - Target position (2)
     """
     return np.concatenate([
-        obs["dogs"].flatten(),
-        obs["sheep"].flatten(),
-        obs["target"].flatten()
+        np.array(obs["dogs"]).flatten(),
+        np.array(obs["sheep"]).flatten(),
+        np.array(obs["target"]).flatten()
     ]).astype(np.float32)
 
 def decode_action(action_int, num_dogs):
@@ -78,43 +76,40 @@ def decode_action(action_int, num_dogs):
         action_int //= 4
     return actions[::-1]
 
-Path(config.OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
-
+# -------------------------------------------------------------------
 # Hyperparameters for training
-EPISODES = 1000000  # Total episodes for training
-MAX_STEPS = 50  # Maximum steps per episode
+# -------------------------------------------------------------------
+EPISODES = 1000000         # Total episodes for training
+MAX_STEPS = 50         # Maximum steps per episode
 BATCH_SIZE = 128
 GAMMA = 0.99               # Discount factor
 LR = 1e-4                  # Learning rate
 TARGET_UPDATE = 25         # Frequency (in episodes) to update target network
 REPLAY_BUFFER_CAPACITY = 50000
-EPS_START = 1.5  # Initial epsilon for epsilon-greedy strategy
-EPS_END = 0.01  # Minimum epsilon
-EPS_DECAY = 1200  # Controls the decay rate of epsilon
-CHECKPOINT_FREQ = 10000
+EPS_START = 1.2            # Initial epsilon for epsilon-greedy strategy
+EPS_END = 0.001             # Minimum epsilon
+EPS_DECAY = 1500            # Controls the decay rate of epsilon
+CHECKPOINT_FREQ = 500       # Save model checkpoint every 50 episodes
 
-
+# -------------------------------------------------------------------
 # Main training loop
-def save_plots(episode_rewards, episode_losses, episode, window=1000):
-    """ Save reward and loss plots as images with rolling average. """
+# -------------------------------------------------------------------
+def save_plots(episode_rewards, episode_losses, episode):
+    """ Save reward and loss plots as images. """
     plt.figure(figsize=(24, 8))
 
-    # Calculate rolling averages
-    rewards_smoothed = pd.Series(episode_rewards).rolling(window, min_periods=1).mean()
-    losses_smoothed = pd.Series(episode_losses).rolling(window, min_periods=1).mean()
-
     plt.subplot(1, 2, 1)
-    plt.plot(rewards_smoothed, label='Episode Reward (Smoothed)')
+    plt.plot(episode_rewards, label='Episode Reward')
     plt.xlabel('Episode')
     plt.ylabel('Total Reward')
-    plt.title('Total Reward per Episode (Smoothed)')
+    plt.title('Total Reward per Episode')
     plt.legend()
 
     plt.subplot(1, 2, 2)
-    plt.plot(losses_smoothed, label='Average Loss per Episode (Smoothed)', color='red')
+    plt.plot(episode_losses, label='Average Loss per Episode', color='red')
     plt.xlabel('Episode')
     plt.ylabel('Average Loss')
-    plt.title('Average Loss per Episode (Smoothed)')
+    plt.title('Average Loss per Episode')
     plt.legend()
 
     plt.tight_layout()
@@ -144,14 +139,13 @@ def train():
     # For each dog there are 4 moves; so total actions = 4^(num_dogs).
     action_dim = 4 ** config.NUM_DOGS
 
+    # --- Device selection: use GPU if available ---
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
     # Set up networks
     policy_net = QNetwork(state_dim, action_dim).to(device)
     target_net = QNetwork(state_dim, action_dim).to(device)
-    # Load weights from different model
-    #policy_net.load_state_dict(torch.load(f"{config.OUTPUT_DIR}/5x5_2d_3s/dqn_model_final.pth", map_location=device))
     target_net.load_state_dict(policy_net.state_dict())
     target_net.eval()  # Set target network to evaluation mode
 
@@ -162,9 +156,8 @@ def train():
 
     # Lists for logging rewards and losses
     episode_rewards = []
-    episode_losses = []  # Average loss per episode
-
-    checkpoint_time_start = time.time()
+    episode_losses = []   # Average loss per episode
+    all_losses = []       # All mini-batch losses across episodes
 
     for episode in range(EPISODES):
         obs, _ = env.reset()
@@ -220,7 +213,7 @@ def train():
                 break
 
 
-    # Epsilon decay
+    # --- Epsilon decay ---
         epsilon = EPS_END + (EPS_START - EPS_END) * np.exp(-episode / EPS_DECAY)
 
         # Compute average loss for the episode (if any updates occurred)
@@ -228,25 +221,30 @@ def train():
         episode_rewards.append(total_reward)
         episode_losses.append(avg_loss)
 
-        # Periodically update the target network
+        # --- Periodically update the target network ---
         if episode % TARGET_UPDATE == 0:
             target_net.load_state_dict(policy_net.state_dict())
 
-        # Save checkpoints
-        if (episode + 1) % CHECKPOINT_FREQ == 0:
+        if episode < 2000:
+            checkpoint_freq = CHECKPOINT_FREQ           # 500
+        elif episode < 10000:
+            checkpoint_freq = CHECKPOINT_FREQ * 2       # 1000
+        else:
+            checkpoint_freq = CHECKPOINT_FREQ * 20      # 10000
+        # else:
+        #     checkpoint_freq = CHECKPOINT_FREQ * 100      # 50000
+
+        # --- Save checkpoints ---
+        if (episode + 1) % checkpoint_freq == 0:
             torch.save(policy_net.state_dict(), f"{config.OUTPUT_DIR}/dqn_model_episode_{episode+1}.pth")
             save_plots(episode_rewards, episode_losses, episode+1)
             print(f"Episode {episode + 1:03d}/{EPISODES}, Total Reward: {total_reward:.2f}, "
-            f"Average Loss: {avg_loss:.4f}, Epsilon: {epsilon:.3f}, Time taken: {time.time() - checkpoint_time_start:.2f} seconds.")
-            checkpoint_time_start = time.time()
+            f"Average Loss: {avg_loss:.4f}, Epsilon: {epsilon:.3f}")
 
     env.close()
-    # Save the final model
-    torch.save(policy_net.state_dict(), f"{config.OUTPUT_DIR}/dqn_model_final.pth")
     print("Training complete.")
 
+# -------------------------------------------------------------------
 if __name__ == "__main__":
-    start = time.time()
     train()
-    end = time.time()
-    print(f"Training took {end - start:.2f} seconds.")
+

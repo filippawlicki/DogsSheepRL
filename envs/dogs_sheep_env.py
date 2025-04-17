@@ -1,9 +1,12 @@
 import gymnasium as gym
 import numpy as np
-from pyswip import Prolog
-
+import random
+from math import trunc
 import config
 from envs.render import GameRenderer
+from pyswip import Prolog
+import math
+from pathlib import Path
 
 prolog_file = str(config.ROOT_DIR / "prolog" / "logic.pl").replace("\\", "/")
 prolog = Prolog()
@@ -42,12 +45,21 @@ class DogsSheepEnv(gym.Env):
 
         # Send target information to Prolog
         self._send_target_to_prolog()
+        self._send_grid_size_to_prolog()
 
         self.steps = 0
+
+        self.state_history = {}  # To track the history of states
 
     def _send_target_to_prolog(self):
         prolog.retractall("target_position(_, _)")
         prolog.assertz(f"target_position({self.target[0]}, {self.target[1]})")
+
+    def _send_grid_size_to_prolog(self):
+        prolog.assertz(f"grid_size({self.grid_size})")
+
+    def _random_pos(self):
+        return [random.randint(0, self.grid_size - 1), random.randint(0, self.grid_size - 1)]
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
@@ -55,15 +67,19 @@ class DogsSheepEnv(gym.Env):
         self.sheep = self.np_random.integers(0, self.grid_size, size=(self.num_sheep, 2), dtype=int)
         self.target = self.np_random.integers(0, self.grid_size, size=2, dtype=int)
 
+        self.prev_dogs = self.dogs.copy()
+        self.prev_sheep = self.sheep.copy()
+
         self._send_target_to_prolog()
         self.steps = 0
         observation = self._get_observation()
+        self.state_history.clear()  # Clear state history on reset
         return observation, {}
 
-    def step(self, dog_actions):
+    def step(self, dog_actions, pushing_sheep=True):
         """
         Makes a step in the environment.
-          - dog_actions: a list of actions for each dog.
+          - Dog_actions: a list of actions for each dog.
           - Returns: observation, reward, done, truncated, info.
           - Sheep avoid dogs.
         """
@@ -72,10 +88,10 @@ class DogsSheepEnv(gym.Env):
         prev_sheep_positions = self.sheep.copy()
 
         # Compute the total distance BEFORE movement
-        old_total_distance = sum(_distance(s, self.target) for s in self.sheep)
-        #print("Dog actions: ", dog_actions)
-        self._move_dogs(dog_actions)
-        self._move_sheep()
+        old_total_distance = sum(self._distance(s, self.target) for s in self.sheep)
+        self._move_dogs(dog_actions, pushing_sheep)
+        if not pushing_sheep:
+            self._move_sheep()
 
         observation = self._get_observation()
 
@@ -96,7 +112,7 @@ class DogsSheepEnv(gym.Env):
         moving_sheep = [s for s in self.sheep if not np.array_equal(s, self.target)]
 
         # Compute total distance only for moving sheep
-        new_total_distance = sum(_distance(s, self.target) for s in moving_sheep)
+        new_total_distance = sum(self._distance(s, self.target) for s in moving_sheep)
 
         # Reward for reducing distance (only for moving sheep)
         distance_delta = old_total_distance - new_total_distance  # Positive if sheep moved closer
@@ -115,18 +131,46 @@ class DogsSheepEnv(gym.Env):
         )
         sheep_reward = newly_arrived_sheep * 5  # Reward per newly arrived sheep
 
+        sheep_left_target = sum(
+            not np.array_equal(s, self.target) and np.array_equal(prev_sheep_positions[i], self.target)
+            for i, s in enumerate(self.sheep)
+        )
+        sheep_penalty = sheep_left_target * -7  # Penalty per sheep that left the target
+
         # Large reward if all sheep reach the target
         done = self._check_done()
         goal_reward = 15 + 50 / self.steps if done else 0
 
+        # # Total reward
+        # reward = distance_reward + sheep_reward + goal_reward
+        # #print(f"Distance delta: {distance_delta}")
+        # #print(f"Distance reward: {distance_reward}")
+        #
+        # return reward, done
+
+        total_sheep_reward = sheep_reward + sheep_penalty
+
+        # Small penalty for each step taken by the dogs
+        step_penalty = -0.3 * self.num_dogs
+
         # Total reward
-        reward = distance_reward + sheep_reward + goal_reward
+        reward = distance_reward + total_sheep_reward + goal_reward + step_penalty
         #print(f"Distance delta: {distance_delta}")
         #print(f"Distance reward: {distance_reward}")
 
         return reward, done
 
-    def _move_dogs(self, actions):
+        def _check_repeated_state(self):
+            state_tuple = tuple(tuple(d) for d in self.dogs) + tuple(tuple(s) for s in self.sheep)
+
+            if state_tuple in self.state_history:
+                self.state_history[state_tuple] += 1
+            else:
+                self.state_history[state_tuple] = 1
+
+            return self.state_history[state_tuple] >= 3  # Truncate if the same state is repeated 3 times
+
+    def _move_dogs(self, actions, pushing_sheep=True):
         directions = {
             0: (-1, 0),  # Up
             1: (1, 0),   # Down
@@ -137,6 +181,25 @@ class DogsSheepEnv(gym.Env):
             move = directions[action]
             self.dogs[i] = np.clip(self.dogs[i] + move, 0, self.grid_size - 1)
 
+            if pushing_sheep:
+                # Convert sheep positions to Prolog format
+                sheep_prolog = "[" + ", ".join(f"({sheep[0]}, {sheep[1]})" for sheep in self.sheep) + "]"
+
+                # Prolog query to move sheep if occupied
+                query = f"push_sheep({self.dogs[i][0]}, {self.dogs[i][1]}, {move[0]}, {move[1]}, {sheep_prolog}, NewSheepList)"
+                # print(f"\nProlog query: {query}")  # Debugging line
+                result = list(prolog.query(query))
+                # print("result: ", result)
+
+                if result:
+                    new_sheep_list = result[0]['NewSheepList']
+                    # print("new_sheep_list: ", new_sheep_list)
+                    cleaned_sheep_list = [sheep.strip(',()') for sheep in new_sheep_list if sheep.strip(',()')]
+                    # print("cleaned_sheep_list: ", cleaned_sheep_list)
+                    self.sheep = [list(map(int, sheep.split(','))) for sheep in cleaned_sheep_list]
+                    # print("self.sheep: ", self.sheep)
+
+
     def _move_sheep(self):
         """Sheep move randomly, avoiding dogs and each other."""
         for i in range(self.num_sheep):
@@ -145,7 +208,7 @@ class DogsSheepEnv(gym.Env):
                 continue
 
             # Calculate crowdedness using distance (can be modified as needed)
-            crowded_sheep = sum(1 for s in self.sheep if _distance(s, self.sheep[i]) < config.MIN_DISTANCE_SHEEP)
+            crowded_sheep = sum(1 for s in self.sheep if self._distance(s, self.sheep[i]) < config.MIN_DISTANCE_SHEEP)
 
             dogs_prolog = "[" + ", ".join(f"({dog[0]}, {dog[1]})" for dog in self.dogs) + "]"
             sheep_prolog = "[" + ", ".join(f"({sheep[0]}, {sheep[1]})" for sheep in self.sheep) + "]"

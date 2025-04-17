@@ -1,5 +1,6 @@
-pygame~=2.6.1
-numpy~=2.2.4
+pygame
+gymnasium
+numpy
 pyswip==0.3.0
 matplotlib~=3.10.1
 gymnasium~=1.1.1

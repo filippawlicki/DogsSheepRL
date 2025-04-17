@@ -1,9 +1,6 @@
 import sys
-
 import pygame
-
 import config
-
 
 class GameRenderer:
     def __init__(self, grid_size):
@@ -49,10 +46,10 @@ class GameRenderer:
                 # Create a black outline for better readability
                 outline = font.render(str(count), True, (0, 0, 0))
                 # Draw a simple outline by offsetting the text slightly in four directions
-                self.screen.blit(outline, (x - 1, y - 1))
-                self.screen.blit(outline, (x + 1, y - 1))
-                self.screen.blit(outline, (x - 1, y + 1))
-                self.screen.blit(outline, (x + 1, y + 1))
+                self.screen.blit(outline, (x - 1, y - 1))  # Top-left
+                self.screen.blit(outline, (x + 1, y - 1))  # Top-right
+                self.screen.blit(outline, (x - 1, y + 1))  # Bottom-left
+                self.screen.blit(outline, (x + 1, y + 1))  # Bottom-right
                 self.screen.blit(text, (x, y))
 
     def draw_target(self, target):
